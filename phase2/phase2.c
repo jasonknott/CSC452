@@ -17,7 +17,7 @@ static void  check_kernel_mode(char*);
 slotPtr init_Slot();
 /* -------------------------- Globals ------------------------------------- */
 
-int debugflag2 = 0;
+int debugflag2 = 1;
 int totalSlotsUsed;
 // the mail boxes 
 mailbox MailBoxTable[MAXMBOX];
@@ -174,6 +174,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 
   if (ProcTable[getpid() % MAXPROC].procID == -1){
     // This means there is nothing in the proc table for the current proc
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxSend(): Adding proc to table\n");
     struct mboxProc new_proc = {
       .procID = getpid(),
       .nextProcPtr = NULL,
@@ -184,11 +186,15 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 
   //Case1: take 0-Slot Inbox
   if(MailBoxTable[mbox_id].num_slots == 0) {
+    if(DEBUG2 && debugflag2)
+      USLOSS_Console("0 Slot Mail box used\n");
     // Is there something blocked?
     if (MailBoxTable[mbox_id].mboxProcList != NULL){
       // There is something blocked
       // Is it blocked on send or recieve
       if (MailBoxTable[mbox_id].BlockedOnSend){
+        if(DEBUG2 && debugflag2)
+          USLOSS_Console("The mail has processes blocked on send\n");
         // If something is blocked on a send
         addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
         ProcTable[getpid() % MAXPROC].status = 12;
@@ -199,6 +205,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
         return 0;
       } else{
         // If something is blocked on recieve
+        if(DEBUG2 && debugflag2)
+          USLOSS_Console("The mail has processes blocked on send\n");
         mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
         temp_proc->slot = new_slot;
@@ -206,6 +214,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
         return 0;
       }
     }else{
+      if(DEBUG2 && debugflag2)
+        USLOSS_Console("The mail has nothing blocked\n");
       // If there is nothing blocked
       MailBoxTable[mbox_id].BlockedOnSend = 1;
       // block the next thing on send
@@ -219,16 +229,10 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     }
   }
 
-  //Check if there is a slot available to even use
-  if(totalSlotsUsed >= MAXSLOTS){
-    return -2;
-  }
-
-  //Case2: Mailboxes are too full
+  //Case2: Mailbox are too full
   if((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
     if(DEBUG2 && debugflag2) 
         USLOSS_Console("MboxSend(): Blocking process\n");
-    
     addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
     ProcTable[getpid() % MAXPROC].status = 12;
     blockMe(12);
@@ -240,6 +244,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 
   // check if there are any blocked processes on recive in the mailbox
   if(MailBoxTable[mbox_id].mboxProcList != NULL){
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxSend(): Something is blocked on recive\n");
     // This means there is a blocked process
     mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
@@ -247,6 +253,9 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     unblockProc(temp_proc->procID);
     return 0;
   }
+
+  if(DEBUG2 && debugflag2) 
+    USLOSS_Console("MboxSend(): Adding slot to mailbox\n");
 
   addToSlotList(&MailBoxTable[mbox_id].slotList, new_slot);
   MailBoxTable[mbox_id].slots_inuse++;
@@ -274,16 +283,20 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
   int size = -1;
   //Case 1: 0-Slot Inbox
   if (MailBoxTable[mbox_id].num_slots == 0) {
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxReceive(): This is a 0-Slot mailbox\n");
     return 0;
   }
 
   //Case 2: No Slots in use
   if(MailBoxTable[mbox_id].slots_inuse == 0) {
     if(DEBUG2 && debugflag2)
-      USLOSS_Console("MboxReceive(): Blocking process\n");
+      USLOSS_Console("MboxReceive(): Nothing has been sent to mailbox...Blocking\n");
 
     if (ProcTable[getpid() % MAXPROC].procID == -1){
         // This means there is nothing in the proc table for the current proc
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxReceive(): Adding to Proc table\n");
         struct mboxProc new_proc = {
           .procID = getpid(),
           .nextProcPtr = NULL,
@@ -308,6 +321,9 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     }
     return size;
   }
+
+
+  
   //pop off list
   popSlotList(&MailBoxTable[mbox_id].slotList);
   // Check is something is blocked on send (the mailbox used to be full, and now has space for waiting)
