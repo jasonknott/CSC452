@@ -162,6 +162,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     return -1;
 
   slotPtr new_slot = init_Slot();
+  if(new_slot == NULL)
+    return -2;
   new_slot->mboxID = mbox_id;
   new_slot->message_size = msg_size;
   new_slot->nextMailSlot = NULL;
@@ -340,7 +342,9 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
   if(totalSlotsUsed >= MAXSLOTS)
     return -2;
 
-  slotPtr new_slot;
+  slotPtr new_slot = init_Slot();
+  if(new_slot == NULL)
+    return -2;
   new_slot->mboxID = mbox_id;
   new_slot->message_size = msg_size;
   new_slot->nextMailSlot = NULL;
@@ -577,5 +581,9 @@ static void check_kernel_mode(char* name)
 } /* check_kernel_mode */
 
 slotPtr init_Slot() {
+  for(int i = 0; i < MAXSLOTS; i++){
+    if(mailSlotTable[i].mboxID == -1)
+      return &mailSlotTable[i];
+  }
   return NULL;
 }
