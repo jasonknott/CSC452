@@ -72,8 +72,7 @@ int start1(char *arg)
     USLOSS_IntVec[USLOSS_TERM_INT] = termHandler;
     USLOSS_IntVec[USLOSS_SYSCALL_INT] = syscallHandler;
     // allocate mailboxes for interrupt handlers.  Etc... 
-    for(i = 0; i < 7; i++)
-    {
+    for(i = 0; i < 7; i++){
         MboxCreate(0, 50);
     }
 
@@ -146,9 +145,6 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
   if(DEBUG2 && debugflag2)
     USLOSS_Console("MboxSend(): started\n");
 
-  //Check if there is a slot available to even use
-  if(totalSlotsUsed >= MAXSLOTS)
-    return -2;
 
   //Checks for Valid Arguments
   if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
@@ -161,9 +157,57 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
   memset(new_slot->message, 0, MAX_MESSAGE);
   memcpy(new_slot->message, msg_ptr, msg_size);
 
+
+  if (ProcTable[getpid() % MAXPROC].procID == -1){
+    // This means there is nothing in the proc table for the current proc
+    struct mboxProc new_proc = {
+      .procID = getpid(),
+      .nextProcPtr = NULL,
+      .slot = new_slot
+    };
+    ProcTable[getpid() % MAXPROC] = new_proc;
+  }
+
   //Case1: take 0-Slot Inbox
   if(MailBoxTable[mbox_id].num_slots == 0) {
-    //Do something here
+    // Is there something blocked?
+    if (MailBoxTable[mbox_id].mboxProcList != NULL){
+      // There is something blocked
+      // Is it blocked on send or recieve
+      if (MailBoxTable[mbox_id].BlockedOnSend){
+        // If something is blocked on a send
+        addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
+        ProcTable[getpid() % MAXPROC].status = 12;
+        blockMe(12);
+        ProcTable[getpid() % MAXPROC].status = 1;
+        if(MailBoxTable[mbox_id].mboxID == -1) 
+          return -3;
+        return 0;
+      } else{
+        // If something is blocked on recieve
+        mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
+        popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
+        temp_proc->slot = new_slot;
+        unblockProc(temp_proc->procID);
+        return 0;
+      }
+    }else{
+      // If there is nothing blocked
+      MailBoxTable[mbox_id].BlockedOnSend = 1;
+      // block the next thing on send
+      addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
+      ProcTable[getpid() % MAXPROC].status = 12;
+      blockMe(12);
+      ProcTable[getpid() % MAXPROC].status = 1;
+      if(MailBoxTable[mbox_id].mboxID == -1) 
+        return -3;
+      return 0;
+    }
+  }
+
+  //Check if there is a slot available to even use
+  if(totalSlotsUsed >= MAXSLOTS){
+    return -2;
   }
 
   //Case2: Mailboxes are too full
@@ -171,16 +215,6 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     if(DEBUG2 && debugflag2) 
         USLOSS_Console("MboxSend(): Blocking process\n");
     
-    if (ProcTable[getpid() % MAXPROC].procID == -1){
-        // This means there is nothing in the proc table for the current proc
-        struct mboxProc new_proc = {
-          .procID = getpid(),
-          .nextProcPtr = NULL,
-          .slot = new_slot
-        };
-        ProcTable[getpid() % MAXPROC] = new_proc;
-      }
-
     addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
     ProcTable[getpid() % MAXPROC].status = 12;
     blockMe(12);
@@ -228,10 +262,9 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 
   /* ------------------------------------------------------------------------
    Name - MboxSend
-   Purpose - Put a message into a slot for the indicated mailbox.
-             Block the sending process if no slot available.
-   Parameters - mailbox id, pointer to data of msg, # of bytes in msg.
-   Returns - zero if successful, -1 if invalid args.
+   Purpose - ...
+   Parameters - ...
+   Returns - ...
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
@@ -252,9 +285,18 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
   new_slot->nextMailSlot = NULL;
   memset(new_slot->message, 0, MAX_MESSAGE);
   memcpy(new_slot->message, msg_ptr, msg_size);
+
+
   //Case1: take 0-Slot Inbox
   if(MailBoxTable[mbox_id].num_slots == 0) {
-    //Do something here
+    // Is there something blocked
+    if (MailBoxTable[mbox_id].mboxProcList != NULL){
+    // If so
+    //  
+    } else {
+      return -1;
+
+    }
   }
 
   //Case2: Mailboxes are too full

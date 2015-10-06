@@ -13,6 +13,7 @@ struct mailbox {
     int       num_slots;
     slotPtr   slotList;
     mboxProcPtr mboxProcList;
+    int       BlockedOnSend;
     // other items as needed...
 };
 
