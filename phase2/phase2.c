@@ -117,7 +117,7 @@ int MboxCreate(int slots, int slot_size)
   if(DEBUG2 && debugflag2)
         USLOSS_Console("MboxCreate was called!\n");
 
-  if(slots >= MAXSLOTS || slots < 0 || slot_size > MAX_MESSAGE || slot_size < 0)
+  if(slots > MAXSLOTS || slots < 0 || slot_size > MAX_MESSAGE || slot_size < 0)
     return -1;
 
   int id = -1;
@@ -286,8 +286,11 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
     temp_proc->slotID = slotId;
-
     unblockProc(temp_proc->procID);
+
+    if (mailSlotTable[temp_proc->slotID].message_size <= msg_size){
+      return -1;
+    }
     return 0;
   }
 
@@ -375,10 +378,11 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
           return -3;
         }
         int proc_slot = ProcTable[getpid() % MAXPROC].slotID;
-                if(msg_size < mailSlotTable[proc_slot].message_size) {
-          memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
-          size = msg_size;
+          if(msg_size < mailSlotTable[proc_slot].message_size) {
+            memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
+            size = msg_size;
         } else {
+
           memcpy(msg_ptr, mailSlotTable[proc_slot].message, mailSlotTable[proc_slot].message_size);
           size = mailSlotTable[proc_slot].message_size;
         }
@@ -451,8 +455,9 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     }
     int proc_slot = ProcTable[getpid() % MAXPROC].slotID;
     if(msg_size < mailSlotTable[proc_slot].message_size) {
-      memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
-      size = msg_size;
+      return -1;
+      // memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
+      // size = msg_size;
     }
     else {
       memcpy(msg_ptr, mailSlotTable[proc_slot].message, mailSlotTable[proc_slot].message_size);
@@ -467,8 +472,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 
 
   if(msg_size < MailBoxTable[mbox_id].slotList->message_size) {
-    memcpy(msg_ptr, MailBoxTable[mbox_id].slotList->message, msg_size);
-    size = msg_size;
+    return -1;
   } else {
     memcpy(msg_ptr, MailBoxTable[mbox_id].slotList->message, MailBoxTable[mbox_id].slotList->message_size);
     size = MailBoxTable[mbox_id].slotList->message_size;
