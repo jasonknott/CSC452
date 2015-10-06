@@ -27,6 +27,7 @@ void addToSlotList(slotPtr* slotList, slotPtr new_slot){
 
   temp->nextMailSlot = new_slot;
   new_slot->nextMailSlot = NULL;
+  slotInfoDump(*slotList);
 }/* addToSlotList */
 
 /* ------------------------------------------------------------------------
@@ -40,11 +41,12 @@ void popSlotList(slotPtr* slotList) {
     if(*slotList == NULL)
         return;
     slotPtr temp = *slotList;
-    temp->mboxID = -1;
-    temp->status = -1;
-    memset(temp->message, 0, MAX_MESSAGE);
-    temp->message_size = -1;
     *slotList = temp->nextMailSlot;
+    temp->mboxID = -1;
+    temp->slotID = -1;
+    temp->status = -1;
+    memset(temp->message, 0, MAX_MESSAGE);;
+    temp->message_size = -1;
     temp->nextMailSlot = NULL;
 } /* popSlotList */
 
@@ -123,12 +125,12 @@ void slotInfoDump(slotPtr slot){
     USLOSS_Console("=======START SLOT INFO DUMP=======\n");
     while(slot != NULL ){
       USLOSS_Console("\tSlot # %i\n", i++ );
+      USLOSS_Console("\tSlotId: %i\n", slot->slotID);
       USLOSS_Console("\tSlot message: %s\n", slot->message);
       USLOSS_Console("\tSlot message size: %i\n", slot->message_size);
       USLOSS_Console("\tSlot nextMailSlot: 0x%d\n", slot->nextMailSlot);
       USLOSS_Console("\n");
       slot = slot->nextMailSlot;
-      USLOSS_Console("slot=%d NULL=%d\n",slot, NULL);
     }
     USLOSS_Console("=======END SLOT INFO DUMP=======\n");
 }/* slotInfoDump */

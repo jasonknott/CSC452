@@ -19,6 +19,7 @@ struct mailbox {
 
 struct mailSlot {
     int       mboxID;
+    int       slotID;
     int       status;
     char      message[MAX_MESSAGE];
     int       message_size;
@@ -30,7 +31,7 @@ struct mboxProc {
     int procID;
     int status;
     mboxProcPtr nextProcPtr;
-    slotPtr slot;
+    int slotID;
 };
 
 struct psrBits {
