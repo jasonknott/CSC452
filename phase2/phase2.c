@@ -157,7 +157,6 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
   if(DEBUG2 && debugflag2)
     USLOSS_Console("MboxSend(): started\n");
 
-
   //Checks for Valid Arguments
   if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
     return -1;
