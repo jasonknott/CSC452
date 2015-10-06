@@ -6,6 +6,7 @@
 
    ------------------------------------------------------------------------ */
 #include "handler.h"
+#include "helper.h"
 #include <usloss.h>
 /* ------------------------- Prototypes ----------------------------------- */
 int start1 (char *);
@@ -53,7 +54,7 @@ int start1(char *arg)
         .slots_size = -1,
         .slots_inuse = 0,
         .slotList = NULL,
-        .mboxProcPtr = NULL
+        .mboxProcList = NULL
       };
     }
 
@@ -119,7 +120,7 @@ int MboxCreate(int slots, int slot_size)
   if(id == -1)
     return -1;
 
-  MailBoxTable[i] = (mailbox) {
+  MailBoxTable[id] = (mailbox) {
     .mboxID = id,
     .num_slots = slots,
     .slots_size = slot_size,
@@ -166,15 +167,15 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
   }
 
   //Case2: Mailboxes are too full
-  if(((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
+  if((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
     if(DEBUG2 && debugflag2) 
         USLOSS_Console("MboxSend(): Blocking process\n");
     
     if (ProcTable[getpid() % MAXPROC].procID == -1){
         // This means there is nothing in the proc table for the current proc
-        mboxProc new_proc = {
+        struct mboxProc new_proc = {
           .procID = getpid(),
-          .nextProcPnt = NULL,
+          .nextProcPtr = NULL,
           .slot = new_slot
         };
         ProcTable[getpid() % MAXPROC] = new_proc;
@@ -190,7 +191,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
   }
 
   // check if there are any blocked processes on recive in the mailbox
-  if(MailBoxTable[mbox_id].mboxProcPtr != NULL){
+  if(MailBoxTable[mbox_id].mboxProcList != NULL){
     // This means there is a blocked process
     mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
@@ -201,7 +202,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 
   addToSlotList(&MailBoxTable[mbox_id].slotList, new_slot);
   MailBoxTable[mbox_id].slots_inuse++;
-  totalSlotsAvailable++;
+  totalSlotsUsed++;
   return 0;
 } /* MboxSend */
 
@@ -253,12 +254,12 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
   }
 
   //Case2: Mailboxes are too full
-  if(((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
+  if((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
     return -2;
   }
 
   // check if there are any blocked processes on recive in the mailbox
-  if(MailBoxTable[mbox_id].mboxProcPtr != NULL){
+  if(MailBoxTable[mbox_id].mboxProcList != NULL){
     // This means there is a blocked process
     mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
@@ -269,7 +270,7 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 
   addToSlotList(&MailBoxTable[mbox_id].slotList, new_slot);
   MailBoxTable[mbox_id].slots_inuse++;
-  totalSlotsAvailable++;
+  totalSlotsUsed++;
   return 0;
 } /* MboxCondSend */
 
@@ -301,7 +302,7 @@ int MboxRelease(int mbox_id)
     return -1;
   }
 
-  mboxProcPtr temp = MailBoxTable[mbox_id].mboxProcPtr;
+  mboxProcPtr temp = MailBoxTable[mbox_id].mboxProcList;
   MailBoxTable[mbox_id].mboxID = -1;
   while(temp != NULL){
     unblockProc(temp->procID);

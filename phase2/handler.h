@@ -4,7 +4,6 @@
 #include "phase1.h"
 #include "phase2.h"
 #include <string.h>
-#include "message.h"
 /* --------------------------------------------- */
 /* -------------------Prototypes---------------- */
 void nullsys(sysargs *);
