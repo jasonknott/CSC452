@@ -2,7 +2,7 @@
 
 extern int debugflag2;
 /* an error method to handle invalid syscalls */
-void nullsys(sysargs *args)
+void nullsys(systemArgs *args)
 {
     USLOSS_Console("nullsys(): Invalid syscall. Halting...\n");
     USLOSS_Halt(1);

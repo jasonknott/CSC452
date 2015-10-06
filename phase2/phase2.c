@@ -625,11 +625,13 @@ int MboxCondReceive(int mbox_id, void *msg_ptr, int msg_size)
       // check how they are blocked
       if(MailBoxTable[mbox_id].BlockedOnSend){
         // Blocked on send
-        USLOSS_Console("MboxCondReceive(): NO MORE STUFF");
+        USLOSS_Console("MboxCondReceive(): DO MORE STUFF");
         return 0;
       } else {
         return -1;
       }
+    } else {
+      return -1;
     }
   }
 

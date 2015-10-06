@@ -45,9 +45,9 @@ typedef struct sysargs
         void *arg3;
         void *arg4;
         void *arg5;
-} sysargs;
+} systemArgs;
 
 // 
-extern void (*systemCallVec[])(sysargs *args);
+extern void (*systemCallVec[])(systemArgs *args);
 
 #endif

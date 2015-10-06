@@ -2,8 +2,27 @@
 # dir=/home/cs452/fall15/phase2/testResults
 #dir=/Users/patrick/Classes/452/project/phase2/testResults
 dir=./testResults
+total=0
+pass=0
 for i in `seq 0 44`;
 do
+    total=$(($total + 1))
+    if [ $i -eq 26 ]; then
+        echo test${i} skipped
+        continue
+    fi
+
+    if [ $i -eq 27 ]; then
+        echo test${i} skipped
+        continue
+    fi
+
+    if [ $i -eq 33 ]; then
+        echo test${i} skipped
+        continue
+    fi
+
+
     if [ $i -lt 10 ]; then
         num=0$i
     else
@@ -29,6 +48,7 @@ do
         then
             # echo
             echo "\033[0;32mtest${num} passed!\033[0m"
+            pass=$(($pass + 1))
         else
             echo test${num} failed
 
@@ -40,3 +60,5 @@ do
     fi
     # echo
 done
+
+echo $pass/$total

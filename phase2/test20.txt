@@ -21,5 +21,5 @@ XXp2c(): after receive of message, result = -3
 XXp2c(): zap'd by MboxReceive() call
 
 start2(): joined with kid 6, status = -3
-test failed result = -2
+failed to recv from released mailbox ... success
 All processes completed.

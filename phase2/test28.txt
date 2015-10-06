@@ -21,5 +21,5 @@ start2(): joined with kid 6, status = -3
 XXp3(): MboxRelease returned 0
 
 start2(): joined with kid 7, status = -4
-test failed result = -2
+failed to recv from released mailbox ... success
 All processes completed.

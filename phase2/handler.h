@@ -7,7 +7,7 @@
 #define DEBUG2 1
 /* --------------------------------------------- */
 /* -------------------Prototypes---------------- */
-void nullsys(sysargs *);
+void nullsys(systemArgs *);
 void clockHandler2(int, void*);
 void diskHandler(int, void*);
 void termHandler(int, void*);
