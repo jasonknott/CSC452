@@ -1,0 +1,7 @@
+start2(): putting itself into user mode
+start2(): calling USLOSS_Syscall executing syscall MAXSYSCALLS - 1
+          This should halt
+start2(): should not see this message!
+quit(): called while in user mode, by process 3. Halting...
+SIMULATOR TRAP: privileged instruction (USLOSS_Halt)
+Aborted (core dumped)
