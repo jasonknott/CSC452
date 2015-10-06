@@ -280,12 +280,67 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
   if(msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
     return -1;
 
+  if (ProcTable[getpid() % MAXPROC].procID == -1){
+    // This means there is nothing in the proc table for the current proc
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxReceive(): Adding to proc table\n");
+    struct mboxProc new_proc = {
+      .procID = getpid(),
+      .nextProcPtr = NULL,
+      .slot = NULL
+    };
+    ProcTable[getpid() % MAXPROC] = new_proc;
+  }
+
   int size = -1;
   //Case 1: 0-Slot Inbox
   if (MailBoxTable[mbox_id].num_slots == 0) {
     if(DEBUG2 && debugflag2) 
       USLOSS_Console("MboxReceive(): This is a 0-Slot mailbox\n");
-    return 0;
+    // If there is something blocked
+    if (MailBoxTable[mbox_id].mboxProcList != NULL){
+      // There is something on the block list
+      // Is it blocked on send or recieve?
+      if (MailBoxTable[mbox_id].BlockedOnSend){
+        // Blocked on send
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxReceive(): Something is blocked on send\n");
+        if(msg_size < ProcTable[getpid() % MAXPROC].slot->message_size) {
+          memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, msg_size);
+          size = msg_size;
+        } else {
+          memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, ProcTable[getpid() % MAXPROC].slot->message_size);
+          size = ProcTable[getpid() % MAXPROC].slot->message_size;
+        }
+        popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
+        unblockProc(MailBoxTable[mbox_id].mboxProcList->procID);
+        return size;
+      }else{
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxReceive(): Something is blocked on recieve\n");
+        // Blocked on recieve
+        addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
+        ProcTable[getpid() % MAXPROC].status = 11;
+        blockMe(11);
+        ProcTable[getpid() % MAXPROC].status = 1;
+        if(MailBoxTable[mbox_id].mboxID == -1) {
+          return -3;
+        }
+        return ProcTable[getpid() % MAXPROC].slot->message_size;
+      }
+    } else {
+      if(DEBUG2 && debugflag2) 
+        USLOSS_Console("MboxReceive(): Nothing is blocked, blocking on recieve\n");
+      // Blocked on recieve
+      addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
+      ProcTable[getpid() % MAXPROC].status = 11;
+      blockMe(11);
+      ProcTable[getpid() % MAXPROC].status = 1;
+      if(MailBoxTable[mbox_id].mboxID == -1) {
+        return -3;
+      }
+      return ProcTable[getpid() % MAXPROC].slot->message_size;
+    }
   }
 
   //Case 2: No Slots in use
@@ -293,17 +348,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     if(DEBUG2 && debugflag2)
       USLOSS_Console("MboxReceive(): Nothing has been sent to mailbox...Blocking\n");
 
-    if (ProcTable[getpid() % MAXPROC].procID == -1){
-        // This means there is nothing in the proc table for the current proc
-        if(DEBUG2 && debugflag2) 
-          USLOSS_Console("MboxReceive(): Adding to Proc table\n");
-        struct mboxProc new_proc = {
-          .procID = getpid(),
-          .nextProcPtr = NULL,
-          .slot = NULL
-        };
-        ProcTable[getpid() % MAXPROC] = new_proc;
-    }
+    
     addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
     ProcTable[getpid() % MAXPROC].status = 11;
     blockMe(11);
@@ -322,8 +367,14 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     return size;
   }
 
-
-  
+  if(msg_size < ProcTable[getpid() % MAXPROC].slot->message_size) {
+    memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, msg_size);
+    size = msg_size;
+  }
+  else {
+    memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, ProcTable[getpid() % MAXPROC].slot->message_size);
+    size = ProcTable[getpid() % MAXPROC].slot->message_size;
+  }
   //pop off list
   popSlotList(&MailBoxTable[mbox_id].slotList);
   // Check is something is blocked on send (the mailbox used to be full, and now has space for waiting)
