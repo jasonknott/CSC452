@@ -42,7 +42,8 @@ int start2(char *arg)
 
 int XXp1(char *arg)
 {
-    int i, result;
+    int i, result =0;
+    USLOSS_Console("",result);
     char buffer[MAX_MESSAGE];
 
     USLOSS_Console("XXp1(): started\n");
@@ -63,6 +64,7 @@ int XXp1(char *arg)
 int XXp2(char *arg)
 {
     int result = -5;
+    USLOSS_Console("",result);
     int my_priority = atoi(arg);
 
     USLOSS_Console("XXp2(): started\n");
@@ -94,7 +96,8 @@ int XXp2(char *arg)
 int XXp3(char *arg)
 {
     int kidpid, status, i;
-    int result;
+    int result =0;
+    USLOSS_Console("",result);
 
     USLOSS_Console("\nXXp3(): started, about to send 5 messages to ");
     USLOSS_Console("the mailbox\n");

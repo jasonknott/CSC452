@@ -117,7 +117,7 @@ int MboxCreate(int slots, int slot_size)
   if(DEBUG2 && debugflag2)
         USLOSS_Console("MboxCreate was called!\n");
 
-  if(slots >= MAXSLOTS || slots < 0 || slot_size >= MAX_MESSAGE || slot_size < 0)
+  if(slots >= MAXSLOTS || slots < 0 || slot_size > MAX_MESSAGE || slot_size < 0)
     return -1;
 
   int id = -1;
@@ -158,7 +158,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     USLOSS_Console("MboxSend(): started\n");
 
   //Checks for Valid Arguments
-  if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
+  // MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX
+  if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX)
     return -1;
 
   int slotId = init_Slot();
@@ -189,19 +190,21 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
           USLOSS_Console("The mail has processes blocked on send\n");
         // If something is blocked on a send
           if (ProcTable[getpid() % MAXPROC].procID == -1){
-    // This means there is nothing in the proc table for the current proc
-    if(DEBUG2 && debugflag2) 
-      USLOSS_Console("MboxSend(): Adding proc to table\n");
-    struct mboxProc new_proc = {
-      .procID = getpid(),
-      .nextProcPtr = NULL,
-      .slotID = slotId
-    };
-    ProcTable[getpid() % MAXPROC] = new_proc;
-  }
+          // This means there is nothing in the proc table for the current proc
+            if(DEBUG2 && debugflag2) 
+              USLOSS_Console("MboxSend(): Adding proc to table\n");
+            struct mboxProc new_proc = {
+              .procID = getpid(),
+              .nextProcPtr = NULL,
+              .slotID = slotId
+            };
+            ProcTable[getpid() % MAXPROC] = new_proc;
+          }
         addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
         ProcTable[getpid() % MAXPROC].status = 12;
         blockMe(12);
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxSend(): Unblocked in case 1\n");
         ProcTable[getpid() % MAXPROC].status = 1;
         if(MailBoxTable[mbox_id].mboxID == -1) 
           return -3;
@@ -209,7 +212,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
       } else{
         // If something is blocked on recieve
         if(DEBUG2 && debugflag2)
-          USLOSS_Console("The mail has processes blocked on recieve\n");
+          USLOSS_Console("MboxSend(): The mail has processes blocked on recieve\n");
         mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
         temp_proc->slotID = slotId;
@@ -219,12 +222,29 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     }else{
       if(DEBUG2 && debugflag2)
         USLOSS_Console("The mail has nothing blocked\n");
+      MailBoxTable[mbox_id].BlockedOnSend = 1;
       // If there is nothing blocked
+
+      // If something is blocked on a send
+      if (ProcTable[getpid() % MAXPROC].procID == -1){
+      // This means there is nothing in the proc table for the current proc
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxSend(): Adding proc to table\n");
+        struct mboxProc new_proc = {
+          .procID = getpid(),
+          .nextProcPtr = NULL,
+          .slotID = slotId
+        };
+        ProcTable[getpid() % MAXPROC] = new_proc;
+      }
+
       MailBoxTable[mbox_id].BlockedOnSend = 1;
       // block the next thing on send
       addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
       ProcTable[getpid() % MAXPROC].status = 12;
       blockMe(12);
+      if(DEBUG2 && debugflag2) 
+        USLOSS_Console("MboxSend(): Unblocked in case1, nothing blocked\n");
       ProcTable[getpid() % MAXPROC].status = 1;
       if(MailBoxTable[mbox_id].mboxID == -1) 
         return -3;
@@ -250,6 +270,8 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
     ProcTable[getpid() % MAXPROC].status = 12;
     blockMe(12);
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxSend(): unblocked in case 2\n");
     ProcTable[getpid() % MAXPROC].status = 1;
     if(MailBoxTable[mbox_id].mboxID == -1) 
         return -3;
@@ -292,7 +314,9 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
   if(DEBUG2 && debugflag2)
     USLOSS_Console("MboxReceive(): started\n");
 
-  if(msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
+  // USLOSS_Console("mbox_id: %i", mbox_id);
+
+  if(msg_size < 0 || MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX)
     return -1;
 
 
@@ -310,6 +334,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
         // Blocked on send
         if(DEBUG2 && debugflag2) 
           USLOSS_Console("MboxReceive(): Something is blocked on send\n");
+
         int proc_slot = ProcTable[getpid() % MAXPROC].slotID;
         if(msg_size < mailSlotTable[proc_slot].message_size) {
           memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
@@ -318,58 +343,85 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
           memcpy(msg_ptr, mailSlotTable[proc_slot].message, mailSlotTable[proc_slot].message_size);
           size = mailSlotTable[proc_slot].message_size;
         }
+
+        int tempID = MailBoxTable[mbox_id].mboxProcList->procID;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
-        unblockProc(MailBoxTable[mbox_id].mboxProcList->procID);
+        mailSlotTable[proc_slot].mboxID = -1;
+        unblockProc(tempID);
         return size;
       }else{
         if(DEBUG2 && debugflag2) 
           USLOSS_Console("MboxReceive(): Something is blocked on recieve\n");
         // Blocked on recieve
           if (ProcTable[getpid() % MAXPROC].procID == -1){
-    // This means there is nothing in the proc table for the current proc
-    if(DEBUG2 && debugflag2) 
-      USLOSS_Console("MboxReceive(): Adding to proc table\n");
-    struct mboxProc new_proc = {
-      .procID = getpid(),
-      .nextProcPtr = NULL,
-      .slotID = -1
-    };
-    ProcTable[getpid() % MAXPROC] = new_proc;
-  }
+            // This means there is nothing in the proc table for the current proc
+            if(DEBUG2 && debugflag2) 
+              USLOSS_Console("MboxReceive(): Adding to proc table\n");
+            struct mboxProc new_proc = {
+              .procID = getpid(),
+              .nextProcPtr = NULL,
+              .slotID = -1
+            };
+            ProcTable[getpid() % MAXPROC] = new_proc;
+          }
         addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
         ProcTable[getpid() % MAXPROC].status = 11;
         blockMe(11);
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxReceive(): Unblocked in case 1\n");
+
         ProcTable[getpid() % MAXPROC].status = 1;
         if(MailBoxTable[mbox_id].mboxID == -1) {
           return -3;
         }
         int proc_slot = ProcTable[getpid() % MAXPROC].slotID;
+                if(msg_size < mailSlotTable[proc_slot].message_size) {
+          memcpy(msg_ptr, mailSlotTable[proc_slot].message, msg_size);
+          size = msg_size;
+        } else {
+          memcpy(msg_ptr, mailSlotTable[proc_slot].message, mailSlotTable[proc_slot].message_size);
+          size = mailSlotTable[proc_slot].message_size;
+        }
+        mailSlotTable[proc_slot].mboxID = -1;
         return mailSlotTable[proc_slot].message_size;
       }
     } else {
       if(DEBUG2 && debugflag2) 
         USLOSS_Console("MboxReceive(): Nothing is blocked, blocking on recieve\n");
+      MailBoxTable[mbox_id].BlockedOnSend = 0;
       // Blocked on recieve
         if (ProcTable[getpid() % MAXPROC].procID == -1){
-    // This means there is nothing in the proc table for the current proc
-    if(DEBUG2 && debugflag2) 
-      USLOSS_Console("MboxReceive(): Adding to proc table\n");
-    struct mboxProc new_proc = {
-      .procID = getpid(),
-      .nextProcPtr = NULL,
-      .slotID = -1
-    };
-    ProcTable[getpid() % MAXPROC] = new_proc;
-  }
+          // This means there is nothing in the proc table for the current proc
+          if(DEBUG2 && debugflag2) 
+            USLOSS_Console("MboxReceive(): Adding to proc table\n");
+          struct mboxProc new_proc = {
+            .procID = getpid(),
+            .nextProcPtr = NULL,
+            .slotID = -1
+          };
+          ProcTable[getpid() % MAXPROC] = new_proc;
+        }
       addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
       ProcTable[getpid() % MAXPROC].status = 11;
       blockMe(11);
+      if(DEBUG2 && debugflag2) 
+        USLOSS_Console("MboxReceive(): unblocked, when nothing was blocked\n");
+
       ProcTable[getpid() % MAXPROC].status = 1;
       if(MailBoxTable[mbox_id].mboxID == -1) {
         return -3;
       }
-      int proc_slot = ProcTable[getpid() % MAXPROC].slotID;
-      return mailSlotTable[proc_slot].message_size;
+      int mail_slot = ProcTable[getpid() % MAXPROC].slotID;
+      if (mailSlotTable[mail_slot].message_size > 0){
+          memcpy(msg_ptr, mailSlotTable[mail_slot].message, msg_size);
+      } else {
+        // We know it must be 0 if it has a size of 0
+        if (msg_ptr != NULL){
+          memset(msg_ptr, 0, sizeof(long));
+        }
+      }
+      mailSlotTable[mail_slot].mboxID = -1;
+      return mailSlotTable[mail_slot].message_size;
     }
   }
 
@@ -378,19 +430,21 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     if(DEBUG2 && debugflag2)
       USLOSS_Console("MboxReceive(): Nothing has been sent to mailbox...Blocking\n");
       if (ProcTable[getpid() % MAXPROC].procID == -1){
-    // This means there is nothing in the proc table for the current proc
-    if(DEBUG2 && debugflag2) 
-      USLOSS_Console("MboxReceive(): Adding to proc table\n");
-    struct mboxProc new_proc = {
-      .procID = getpid(),
-      .nextProcPtr = NULL,
-      .slotID = -1
-    };
-    ProcTable[getpid() % MAXPROC] = new_proc;
-  }
+        // This means there is nothing in the proc table for the current proc
+        if(DEBUG2 && debugflag2) 
+          USLOSS_Console("MboxReceive(): Adding to proc table\n");
+        struct mboxProc new_proc = {
+          .procID = getpid(),
+          .nextProcPtr = NULL,
+          .slotID = -1
+        };
+        ProcTable[getpid() % MAXPROC] = new_proc;
+      }
     addToBlockProcList(&MailBoxTable[mbox_id].mboxProcList, &ProcTable[getpid() % MAXPROC]);
     ProcTable[getpid() % MAXPROC].status = 11;
     blockMe(11);
+    if(DEBUG2 && debugflag2) 
+      USLOSS_Console("MboxReceive(): unblocked in case 2\n");
     ProcTable[getpid() % MAXPROC].status = 1;
     if(MailBoxTable[mbox_id].mboxID == -1) {
       return -3;
@@ -404,6 +458,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
       memcpy(msg_ptr, mailSlotTable[proc_slot].message, mailSlotTable[proc_slot].message_size);
       size = mailSlotTable[proc_slot].message_size;
     }
+    mailSlotTable[proc_slot].mboxID = -1;
     return size;
   }
 
@@ -434,6 +489,8 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
       MailBoxTable[mbox_id].slots_inuse--;
       totalSlotsUsed--;
     }
+    int proc_slot = MailBoxTable[mbox_id].mboxProcList->slotID;
+    mailSlotTable[proc_slot].mboxID = -1;
   return size;
 } /* MboxReceive */
 
@@ -444,8 +501,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
    Returns - ...
    Side Effects - none.
    ----------------------------------------------------------------------- */
-int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
-{
+int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size){
   if(DEBUG2 && debugflag2)
     USLOSS_Console("MboxCondSend(): started\n");
 
@@ -456,24 +512,13 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
   if(totalSlotsUsed >= MAXSLOTS)
     return -2;
 
-  int slotId = init_Slot();
-  // If new_slot is NULL that means we ran out of slots
-   if(slotId == -1)
-    return -2;
-  slotPtr new_slot = &mailSlotTable[slotId];
-  new_slot->slotID = slotId;
-  new_slot->mboxID = mbox_id;
-  new_slot->message_size = msg_size;
-  new_slot->nextMailSlot = NULL;
-  memset(new_slot->message, 0, MAX_MESSAGE);
-  memcpy(new_slot->message, msg_ptr, msg_size);
 
 
   //Case1: take 0-Slot Inbox
   if(MailBoxTable[mbox_id].num_slots == 0) {
     if(DEBUG2 && debugflag2)
       USLOSS_Console("This is a 0-Slot mailbox\n");
-    // Is there something blocked
+     // Is there something blocked
     if (MailBoxTable[mbox_id].mboxProcList != NULL){
       if(MailBoxTable[mbox_id].BlockedOnSend){
         // Blocked on a send
@@ -481,7 +526,27 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
       } else {
         // blocked on Receive
         if(DEBUG2 && debugflag2)
-          USLOSS_Console("The mailbox has processes blocked on recieve\n");
+          USLOSS_Console("MboxCondSend(): The mailbox has processes blocked on recieve\n");
+        
+        int slotId = init_Slot();
+        // If new_slot is NULL that means we ran out of slots
+         if(slotId == -1)
+          return -2;
+        slotPtr new_slot = &mailSlotTable[slotId];
+        new_slot->slotID = slotId;
+        new_slot->mboxID = mbox_id;
+        new_slot->message_size = msg_size;
+        new_slot->nextMailSlot = NULL;
+
+        if (msg_size > 0){
+          memset(new_slot->message, 0, MAX_MESSAGE);
+          memcpy(new_slot->message, msg_ptr, msg_size);
+        } else {
+          // If new know it's a size of 0, it must always be a 0
+          memset(new_slot->message, 0, MAX_MESSAGE);
+        }
+
+
         mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
         temp_proc->slotID = slotId;
@@ -493,6 +558,19 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 
     }
   }
+
+    int slotId = init_Slot();
+  // If new_slot is NULL that means we ran out of slots
+   if(slotId == -1)
+    return -2;
+  slotPtr new_slot = &mailSlotTable[slotId];
+  new_slot->slotID = slotId;
+  new_slot->mboxID = mbox_id;
+  new_slot->message_size = msg_size;
+  new_slot->nextMailSlot = NULL;
+  memset(new_slot->message, 0, MAX_MESSAGE);
+  memcpy(new_slot->message, msg_ptr, msg_size);
+
 
   //Case2: Mailboxes are too full
   if((MailBoxTable[mbox_id].slots_inuse >= MailBoxTable[mbox_id].num_slots)) {
@@ -528,7 +606,7 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 int MboxCondReceive(int mbox_id, void *msg_ptr, int msg_size)
 {
   if(DEBUG2 && debugflag2)
-    USLOSS_Console("MboxReceive(): started\n");
+    USLOSS_Console("MboxCondReceive(): started\n");
 
   if(msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
     return -1;
@@ -540,7 +618,17 @@ int MboxCondReceive(int mbox_id, void *msg_ptr, int msg_size)
   int size = -1;
   //Case 1: 0-Slot Inbox
   if (MailBoxTable[mbox_id].num_slots == 0) {
-    return 0;
+    // Check if anything is blocked on it
+    if (MailBoxTable[mbox_id].mboxProcList != NULL){
+      // check how they are blocked
+      if(MailBoxTable[mbox_id].BlockedOnSend){
+        // Blocked on send
+        USLOSS_Console("MboxCondReceive(): NO MORE STUFF");
+        return 0;
+      } else {
+        return -1;
+      }
+    }
   }
 
   //Case 2: No Slots Available
@@ -581,7 +669,7 @@ int MboxCondReceive(int mbox_id, void *msg_ptr, int msg_size)
    ----------------------------------------------------------------------- */
 int MboxRelease(int mbox_id)
 {
-  if (mbox_id < 0 || mbox_id > MAXMBOX || MailBoxTable[mbox_id].mboxID == -1){
+  if (MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID > MAXMBOX || MailBoxTable[mbox_id].mboxID == -1){
     return -1;
   }
 
@@ -589,7 +677,8 @@ int MboxRelease(int mbox_id)
   MailBoxTable[mbox_id].mboxID = -1;
   while(temp != NULL){
     unblockProc(temp->procID);
-    temp = temp->nextProcPtr;
+    popMboxProcList(&temp);
+    temp = MailBoxTable[mbox_id].mboxProcList;
   }
 
   if(isZapped()){
@@ -625,7 +714,7 @@ int waitDevice(int type, int unit, int *status)
     USLOSS_Console("MailBox it blocks at: %i\n", mailbox);
   }
 
-  MboxReceive(mailbox, status, 0);
+  MboxReceive(mailbox, status, sizeof(long));
 
   if(isZapped()){
     return -1;

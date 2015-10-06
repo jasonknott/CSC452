@@ -43,7 +43,8 @@ int start2(char *arg)
 
 int XXp1(char *arg)
 {
-    int i, result;
+    int i, result =0;
+    USLOSS_Console("",result);
 
     USLOSS_Console("XXp1(): started\n");
 

@@ -1,4 +1,4 @@
-/* test rleeasing a empty mailbox with a number of blocked receivers (all of
+/* test releasing an empty mailbox with a number of blocked receivers (all of
  * various higher priorities then the releaser), and then trying to receive
  * and send to the now unused mailbox.
  */
@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <strings.h>
+ #include <string.h>
 #include <usloss.h>
 #include <phase1.h>
 #include <phase2.h>

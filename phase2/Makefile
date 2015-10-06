@@ -11,7 +11,7 @@ CSRCS = ${COBJS:.o=.c}
 #PHASELIB = phase1
 
 # When using one of Patrick's phase1 libraries:
-#PHASE1LIB = patrickphase1debug
+# PHASE1LIB = patrickphase1debug
 PHASE1LIB = patrickphase1
 
 HDRS = message.h helper.h handler.h

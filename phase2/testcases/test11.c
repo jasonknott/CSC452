@@ -69,7 +69,7 @@ int XXp1(char *arg)
       printf("XXp1(): conditionally sending message #%d to mailbox %d\n",
              i, mbox_id);
       sprintf(buffer, "good-bye, #%d", i);
-      result = MboxCondSend(mbox_id, buffer, strlen(buffer)+1);
+      result = MboxCondSend(mbox_id, &buffer, strlen(buffer)+1);
       printf("XXp1(): after conditional send of message #%d, result = %d\n",
              i, result);
    }

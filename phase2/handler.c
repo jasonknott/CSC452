@@ -17,7 +17,7 @@ void clockHandler2(int dev, void *arg)
   static int i = 1;
   if (i++ > 4){
     i = 0;
-    MboxCondSend(0, 0, sizeof(int));
+    MboxCondSend(0, 0, 0);
   }
   timeSlice();
 } /* clockHandler */
@@ -27,7 +27,7 @@ void diskHandler(int dev, void *arg)
 {
   if (DEBUG2 && debugflag2)
       USLOSS_Console("diskHandler(): called\n");
-  int status=0;
+  static int status=0;
   USLOSS_DeviceInput(dev, (long) arg, &status);
   MboxCondSend(5 + (long) arg, &status, sizeof(status));
 } /* diskHandler */
