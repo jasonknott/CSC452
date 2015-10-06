@@ -17,7 +17,7 @@ static void  check_kernel_mode(char*);
 int init_Slot();
 /* -------------------------- Globals ------------------------------------- */
 
-int debugflag2 = 0;
+int debugflag2 = 1;
 int totalSlotsUsed;
 // the mail boxes 
 mailbox MailBoxTable[MAXMBOX];
@@ -209,7 +209,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
       } else{
         // If something is blocked on recieve
         if(DEBUG2 && debugflag2)
-          USLOSS_Console("The mail has processes blocked on send\n");
+          USLOSS_Console("The mail has processes blocked on recieve\n");
         mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
         temp_proc->slotID = slotId;
@@ -426,7 +426,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
   if (MailBoxTable[mbox_id].mboxProcList != NULL){
       // This means there is things blocked on send
     int tempPID = MailBoxTable[mbox_id].mboxProcList->procID;
-    USLOSS_Console("Blocked slot is %i\n", MailBoxTable[mbox_id].mboxProcList->slotID);
+    // USLOSS_Console("Blocked slot is %i\n", MailBoxTable[mbox_id].mboxProcList->slotID);
     addToSlotList(&MailBoxTable[mbox_id].slotList, &mailSlotTable[MailBoxTable[mbox_id].mboxProcList->slotID]);
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
     unblockProc(tempPID);
@@ -447,7 +447,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 {
   if(DEBUG2 && debugflag2)
-    USLOSS_Console("MboxSend(): started\n");
+    USLOSS_Console("MboxCondSend(): started\n");
 
   //Checks for Valid Arguments
   if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
@@ -473,8 +473,19 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
   if(MailBoxTable[mbox_id].num_slots == 0) {
     // Is there something blocked
     if (MailBoxTable[mbox_id].mboxProcList != NULL){
-    // If so
-    //  
+      if(MailBoxTable[mbox_id].BlockedOnSend){
+        // Blocked on a send
+        return -1;
+      } else {
+        // blocked on Receive
+        if(DEBUG2 && debugflag2)
+          USLOSS_Console("The mail has processes blocked on recieve\n");
+        mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
+        popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
+        temp_proc->slotID = slotId;
+        unblockProc(temp_proc->procID);
+        return 0;
+      }
     } else {
       return -1;
 

@@ -27,7 +27,7 @@ void addToSlotList(slotPtr* slotList, slotPtr new_slot){
 
   temp->nextMailSlot = new_slot;
   new_slot->nextMailSlot = NULL;
-  slotInfoDump(*slotList);
+  // slotInfoDump(*slotList);
 }/* addToSlotList */
 
 /* ------------------------------------------------------------------------
@@ -102,7 +102,7 @@ void addToBlockProcList(mboxProcPtr* list, mboxProcPtr proc){
  *  ----------------------------------------------------------------------- */
 void blockListInfoDump(mboxProcPtr list){
     int i = 0;
-    USLOSS_Console("=======START BLOCK INFO DUMP=======\n");
+
     while(list != NULL ){
       USLOSS_Console("\tBlock # %i\n", i++ );
       USLOSS_Console("\tBlock PID: %i\n", list->procID );
@@ -110,7 +110,7 @@ void blockListInfoDump(mboxProcPtr list){
       USLOSS_Console("\n");
       list = list->nextProcPtr;
     }
-    USLOSS_Console("=======END BLOCK INFO DUMP=======\n");  
+
 }/* blockListInfoDump */
 
 /* ------------------------------------------------------------------------

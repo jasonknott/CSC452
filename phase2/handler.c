@@ -17,7 +17,7 @@ void clockHandler2(int dev, void *arg)
   static int i = 1;
   if (i++ > 4){
     i = 0;
-    MboxCondSend(0, 0, 0);
+    MboxCondSend(0, 0, sizeof(int));
   }
   timeSlice();
 } /* clockHandler */
