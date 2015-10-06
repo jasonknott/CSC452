@@ -27,7 +27,7 @@ void addToSlotList(slotPtr* slotList, slotPtr new_slot){
 
   temp->nextMailSlot = new_slot;
   new_slot->nextMailSlot = NULL;
-  slotInfoDump(*slotList);
+  //slotInfoDump(*slotList);
 }/* addToSlotList */
 
 /* ------------------------------------------------------------------------

@@ -426,7 +426,6 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
   if (MailBoxTable[mbox_id].mboxProcList != NULL){
       // This means there is things blocked on send
     int tempPID = MailBoxTable[mbox_id].mboxProcList->procID;
-    USLOSS_Console("Blocked slot is %i\n", MailBoxTable[mbox_id].mboxProcList->slotID);
     addToSlotList(&MailBoxTable[mbox_id].slotList, &mailSlotTable[MailBoxTable[mbox_id].mboxProcList->slotID]);
     popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
     unblockProc(tempPID);
@@ -447,7 +446,7 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 {
   if(DEBUG2 && debugflag2)
-    USLOSS_Console("MboxSend(): started\n");
+    USLOSS_Console("MboxCondSend(): started\n");
 
   //Checks for Valid Arguments
   if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)

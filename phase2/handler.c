@@ -12,12 +12,12 @@ void nullsys(sysargs *args)
 void clockHandler2(int dev, void *arg)
 {
 
-  if (DEBUG2 && debugflag2)
+  //if (DEBUG2 && debugflag2)
     USLOSS_Console("clockHandler2(): called\n");
   static int i = 1;
   if (i++ > 4){
     i = 0;
-    MboxCondSend(0, 0, 0);
+    MboxCondSend(0, 0, sizeof(int));
   }
   timeSlice();
 } /* clockHandler */
