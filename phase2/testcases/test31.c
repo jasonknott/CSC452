@@ -20,7 +20,8 @@ int start2(char *arg)
 {
     int result;
 
-    int kidpid;
+    int kidpid = 0;
+    USLOSS_Console("",kidpid);
     int status;
     USLOSS_Console("start2(): started\n");
     mbox_id = MboxCreate(1, 13);

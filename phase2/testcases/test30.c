@@ -21,7 +21,8 @@ int start2(char *arg)
 {
   int status;
   int result;
-  int kidpid;
+  int kidpid = 0;
+  USLOSS_Console("",kidpid);
 
   printf("start2(): started\n");
   mbox_id = MboxCreate(1, 13);
