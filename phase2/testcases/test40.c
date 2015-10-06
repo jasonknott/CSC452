@@ -14,7 +14,9 @@ char buf[256];
 int mbox_id;
 int start2(char *arg)
 {
-    int result, kidpid;
+    int result;
+    int kidpid = 0;
+    USLOSS_Console("",kidpid);
     char buffer[11];
 
     USLOSS_Console("start2(): started\n");
