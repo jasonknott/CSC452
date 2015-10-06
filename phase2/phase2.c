@@ -159,7 +159,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 
   //Checks for Valid Arguments
   // MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX
-  if(msg_size >= MailBoxTable[mbox_id].slots_size || msg_size < 0 || MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX)
+  if(msg_size > MailBoxTable[mbox_id].slots_size || msg_size < 0 || MailBoxTable[mbox_id].mboxID < 0 || MailBoxTable[mbox_id].mboxID >= MAXMBOX)
     return -1;
 
   int slotId = init_Slot();

@@ -8,17 +8,6 @@ for i in `seq 0 44`;
 do
     total=$(($total + 1))
 
-    if [ $i -eq 27 ]; then
-        echo test${i} skipped
-        continue
-    fi
-
-    if [ $i -eq 33 ]; then
-        echo test${i} skipped
-        continue
-    fi
-
-
     if [ $i -lt 10 ]; then
         num=0$i
     else
