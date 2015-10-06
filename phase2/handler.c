@@ -28,8 +28,8 @@ void diskHandler(int dev, void *arg)
   if (DEBUG2 && debugflag2)
       USLOSS_Console("diskHandler(): called\n");
   int status=0;
-  USLOSS_DeviceInput(dev, (int) arg, &status);
-  MboxCondSend(5 + (int) arg, &status, sizeof(status));
+  USLOSS_DeviceInput(dev, (long) arg, &status);
+  MboxCondSend(5 + (long) arg, &status, sizeof(status));
 } /* diskHandler */
 
 
@@ -39,8 +39,8 @@ void termHandler(int dev, void *arg)
   if (DEBUG2 && debugflag2)
       USLOSS_Console("termHandler(): called\n");
   int status = 0;
-  USLOSS_DeviceInput(dev, (int) arg, &status);
-  MboxCondSend((int) arg+1, &status, sizeof(status));
+  USLOSS_DeviceInput(dev, (long) arg, &status);
+  MboxCondSend((long) arg+1, &status, sizeof(status));
 
 
 } /* termHandler */

@@ -162,6 +162,7 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
     return -1;
 
   slotPtr new_slot = init_Slot();
+  // If new_slot is NULL that means we ran out of slots
   if(new_slot == NULL)
     return -2;
   new_slot->mboxID = mbox_id;
