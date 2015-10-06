@@ -1,7 +1,6 @@
 #include "handler.h"
 
 extern int debugflag2;
-extern int DEBUG2;
 /* an error method to handle invalid syscalls */
 void nullsys(sysargs *args)
 {

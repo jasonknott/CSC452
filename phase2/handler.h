@@ -4,6 +4,7 @@
 #include "phase1.h"
 #include "phase2.h"
 #include <string.h>
+#define DEBUG2 1
 /* --------------------------------------------- */
 /* -------------------Prototypes---------------- */
 void nullsys(sysargs *);
