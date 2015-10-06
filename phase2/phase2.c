@@ -308,6 +308,14 @@ int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
     }
     return size;
   }
+    if(msg_size < ProcTable[getpid() % MAXPROC].slot->message_size) {
+      memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, msg_size);
+      size = msg_size;
+    }
+    else {
+      memcpy(msg_ptr, ProcTable[getpid() % MAXPROC].slot->message, ProcTable[getpid() % MAXPROC].slot->message_size);
+      size = ProcTable[getpid() % MAXPROC].slot->message_size;
+    }
   //pop off list
   popSlotList(&MailBoxTable[mbox_id].slotList);
   // Check is something is blocked on send (the mailbox used to be full, and now has space for waiting)

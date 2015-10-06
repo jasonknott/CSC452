@@ -51,7 +51,7 @@ $(TESTS):	$(TARGET)
 	$(CC) $(LDFLAGS) -o $@ $@.o $(LIBS)
 
 clean:
-	rm -f $(COBJS) $(TARGET) test??.o test?? test??.txt core term*.out
+	rm -f $(COBJS) $(TARGET) test??.o test?? *.txt core term*.out
 
 phase2.o:	message.h
 
