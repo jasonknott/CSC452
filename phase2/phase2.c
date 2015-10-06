@@ -218,7 +218,11 @@ int MboxSend(int mbox_id, void *msg_ptr, int msg_size)
 int MboxReceive(int mbox_id, void *msg_ptr, int msg_size)
 {
   if(DEBUG2 && debugflag2)
-    USLOSS_Console("MboxReceive(): started\n"); 
+    USLOSS_Console("MboxReceive(): started\n");
+
+  if(msg_size < 0 || mbox_id < 0 || mbox_id >= MAXMBOX)
+    return -1;
+  
   return -1;
 } /* MboxReceive */
 
