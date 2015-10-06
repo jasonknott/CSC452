@@ -471,6 +471,8 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
 
   //Case1: take 0-Slot Inbox
   if(MailBoxTable[mbox_id].num_slots == 0) {
+    if(DEBUG2 && debugflag2)
+      USLOSS_Console("This is a 0-Slot mailbox\n");
     // Is there something blocked
     if (MailBoxTable[mbox_id].mboxProcList != NULL){
       if(MailBoxTable[mbox_id].BlockedOnSend){
@@ -479,7 +481,7 @@ int MboxCondSend(int mbox_id, void *msg_ptr, int msg_size)
       } else {
         // blocked on Receive
         if(DEBUG2 && debugflag2)
-          USLOSS_Console("The mail has processes blocked on recieve\n");
+          USLOSS_Console("The mailbox has processes blocked on recieve\n");
         mboxProcPtr temp_proc = MailBoxTable[mbox_id].mboxProcList;
         popMboxProcList(&MailBoxTable[mbox_id].mboxProcList);
         temp_proc->slotID = slotId;
