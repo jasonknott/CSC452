@@ -1,0 +1,31 @@
+start2(): started
+start2(): calling USLOSS_DeviceOutput to enable receive interrupts, control = 2
+XXp0(): started, calling waitDevice for terminal 0
+XXp1(): started, calling waitDevice for terminal 1
+XXp2(): started, calling waitDevice for terminal 2
+XXp3(): started, calling waitDevice for terminal 3
+XXp0(): after waitDevice call
+XXp0(): status = 23041
+XXp0(): receive status for terminal 0 = 1
+XXp0(): character received = Z
+start2(): joined with kid 4, status = -3
+
+XXp0(): after waitDevice call
+XXp0(): status = 18433
+XXp0(): receive status for terminal 0 = 1
+XXp0(): character received = H
+start2(): joined with kid 5, status = -3
+
+XXp0(): after waitDevice call
+XXp0(): status = 18177
+XXp0(): receive status for terminal 0 = 1
+XXp0(): character received = G
+start2(): joined with kid 6, status = -3
+
+XXp0(): after waitDevice call
+XXp0(): status = 16641
+XXp0(): receive status for terminal 0 = 1
+XXp0(): character received = A
+start2(): joined with kid 7, status = -3
+
+All processes completed.
