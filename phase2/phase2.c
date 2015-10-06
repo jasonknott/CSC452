@@ -19,6 +19,7 @@ int init_Slot();
 
 int debugflag2 = 0;
 int totalSlotsUsed;
+//this is dirty
 // the mail boxes 
 mailbox MailBoxTable[MAXMBOX];
 
@@ -42,7 +43,6 @@ int start1(char *arg)
         USLOSS_Console("start1(): at beginning\n");
 
     check_kernel_mode("start1");
-
     // Disable interrupts
     disableInterrupts();
     int kid_pid, status;
@@ -703,7 +703,6 @@ int waitDevice(int type, int unit, int *status)
   if(DEBUG2 && debugflag2) {
     USLOSS_Console("waitDevice(): started\n");
   }
-
   int mailbox = -1;
   if (type == USLOSS_CLOCK_INT){
     mailbox = 0;
@@ -712,11 +711,10 @@ int waitDevice(int type, int unit, int *status)
   } else if (type == USLOSS_DISK_INT){
     mailbox = 5 + unit;
   }
-  
+   
   if(DEBUG2 && debugflag2) {
     USLOSS_Console("MailBox it blocks at: %i\n", mailbox);
   }
-
   MboxReceive(mailbox, status, sizeof(long));
 
   if(isZapped()){

@@ -40,7 +40,7 @@ void termHandler(int dev, void *arg)
       USLOSS_Console("termHandler(): called\n");
   int status = 0;
   USLOSS_DeviceInput(dev, (long) arg, &status);
-  MboxCondSend((long) arg+1, &status, sizeof(status));
+  MboxCondSend((long) arg +1, &status, sizeof(status));
 
 
 } /* termHandler */
