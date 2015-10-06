@@ -317,7 +317,6 @@ if(msg_size < MailBoxTable[mbox_id].slotList->message_size) {
         size = MailBoxTable[mbox_id].slotList->message_size;
     }
   //pop off list
-  slotInfoDump(MailBoxTable[mbox_id].slotList);
   popSlotList(&MailBoxTable[mbox_id].slotList);
   // Check is something is blocked on send (the mailbox used to be full, and now has space for waiting)
   if (MailBoxTable[mbox_id].mboxProcList != NULL){
