@@ -26,6 +26,7 @@ void addToSlotList(slotPtr* slotList, slotPtr new_slot){
   }
 
   temp->nextMailSlot = new_slot;
+  new_slot->nextMailSlot = NULL;
 }/* addToSlotList */
 
 /* ------------------------------------------------------------------------
@@ -39,7 +40,12 @@ void popSlotList(slotPtr* slotList) {
     if(*slotList == NULL)
         return;
     slotPtr temp = *slotList;
+    temp->mboxID = -1;
+    temp->status = -1;
+    memset(temp->message, 0, MAX_MESSAGE);
+    temp->message_size = -1;
     *slotList = temp->nextMailSlot;
+    temp->nextMailSlot = NULL;
 } /* popSlotList */
 
 /* ------------------------------------------------------------------------

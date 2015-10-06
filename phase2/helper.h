@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <usloss.h>
+#include <string.h>
 #include "message.h"
 /* ------------------------- Prototypes ----------------------------------- */
 void addToSlotList(slotPtr *, slotPtr);
