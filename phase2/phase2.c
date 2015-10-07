@@ -117,7 +117,7 @@ int MboxCreate(int slots, int slot_size)
   if(DEBUG2 && debugflag2)
         USLOSS_Console("MboxCreate was called!\n");
 
-  if(slots > MAXSLOTS || slots < 0 || slot_size > MAX_MESSAGE || slot_size < 0)
+  if( slots < 0 || slot_size > MAX_MESSAGE || slot_size < 0)
     return -1;
 
   int id = -1;
