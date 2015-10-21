@@ -7,9 +7,9 @@
 #include <string.h>
 //---------------------------- Function Prototypes ----------------------------
 extern int start3(char *);
-void spawn(systemArgs);
-void wait_3(systemArgs);
-void terminate(systemArgs);
+void spawn(systemArgs*);
+void wait_3(systemArgs*);
+void terminate(systemArgs*);
 int spawnReal(char *, int (*func)(char *), char *, unsigned int , int );
 void spawnLaunch();
 int waitReal(int *);
@@ -90,20 +90,20 @@ Parameters -
 Returns - 
 Side Effects - none.
 ----------------------------------------------------------------------- */
-void spawn(systemArgs sysArg){
+void spawn(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawn(): Started\n");
-
-    USLOSS_Console("spawn(): pri: %i\n", (long)sysArg.arg4);
-    int (*func)(char *) = sysArg.arg1;
-    char *arg = sysArg.arg2;
-    int stack_size = sysArg.arg3;
-    int priority = ((int*)sysArg.arg4);
-    char *name = sysArg.arg5;
+    int i = (long) sysArg->arg4;
+    USLOSS_Console("spawn(): pri: %i\n", i);
+    int (*func)(char *) = sysArg->arg1;
+    char *arg = sysArg->arg2;
+    int stack_size = sysArg->arg3;
+    int priority = ((int*)sysArg->arg4);
+    char *name = sysArg->arg5;
     //Need to do a validity check on sysArgs for arg4
     // More error checking like this
     if (stack_size < USLOSS_MIN_STACK){
-        sysArg.arg4 = -1;
+        sysArg->arg4 = -1;
         return;
     }
 
@@ -112,8 +112,8 @@ void spawn(systemArgs sysArg){
 
 
     int pid = spawnReal(name, func, arg, stack_size, priority);
-    sysArg.arg1 = (void*) ( (long) pid);
-    sysArg.arg4 = (void *) ( (long) 0);
+    sysArg->arg1 = (void*) ( (long) pid);
+    sysArg->arg4 = (void *) ( (long) 0);
     USLOSS_Console("spawn(): about to return\n");
     return;
 }
@@ -195,13 +195,13 @@ void spawnLaunch() {
    Returns - 
    Side Effects - none.
    ----------------------------------------------------------------------- */
-void wait_3(systemArgs sysArg)
+void wait_3(systemArgs *sysArg)
 {   int status;
     //need to check if process had children
     int pid = waitReal(&status);
-    sysArg.arg1 = (void*) ( (long) pid);
-    sysArg.arg2 = (void*) ( (long) status);
-    sysArg.arg4 = (void*) ( (long) -1);
+    sysArg->arg1 = (void*) ( (long) pid);
+    sysArg->arg2 = (void*) ( (long) status);
+    sysArg->arg4 = (void*) ( (long) -1);
 }
 
    /* ------------------------------------------------------------------------
@@ -211,7 +211,7 @@ void wait_3(systemArgs sysArg)
    Returns - 
    Side Effects - none.
    ----------------------------------------------------------------------- */
-void terminate(systemArgs sysArg)
+void terminate(systemArgs *sysArg)
 {
     terminateReal((int) sysArg.arg1);
 }
