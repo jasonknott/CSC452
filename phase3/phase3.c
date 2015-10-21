@@ -22,7 +22,7 @@ static void check_kernel_mode(char* );
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
-int debugflag3 = 0;
+int debugflag3 = 1;
 
 int start2(char *arg)
 {
@@ -31,12 +31,13 @@ int start2(char *arg)
     /*
      * Check kernel mode here.
      */
+
+
      check_kernel_mode("start3");
 
     /*
      * Data structure initialization as needed...
      */
-
      //Initialize ProcTable
      initializeProcTable();
      //Initialize SystemCallVec
@@ -73,6 +74,7 @@ int start2(char *arg)
      */
     pid = spawnReal("start3", start3, NULL, USLOSS_MIN_STACK, 3);
 
+
     /* Call the waitReal version of your wait code here.
      * You call waitReal (rather than Wait) because start2 is running
      * in kernel (not user) mode.
@@ -81,19 +83,107 @@ int start2(char *arg)
     return -1;
 } /* start2 */
 
-   /* ------------------------------------------------------------------------
-   Name - spawn
-   Purpose - Extracts arguments. 
+/* ------------------------------------------------------------------------
+Name - spawn
+Purpose - Extracts arguments. 
+Parameters - 
+Returns - 
+Side Effects - none.
+----------------------------------------------------------------------- */
+void spawn(systemArgs sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawn(): Started\n");
+    USLOSS_Console("pri: %i\n", sysArg.arg4);
+    int (*func)(char *) = sysArg.arg1;
+    char *arg = sysArg.arg2;
+    int stack_size = sysArg.arg3;
+    int priority = sysArg.arg4;
+    char *name = sysArg.arg5;
+    //Need to do a validity check on sysArgs for arg4
+    // More error checking like this
+    if (stack_size < USLOSS_MIN_STACK){
+        sysArg.arg4 = -1;
+        return;
+    }
+    // Switch to kernal mode
+    USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
+
+
+    int pid = spawnReal(name, func, arg, stack_size, priority);
+    sysArg.arg1 = (void*) ( (long) pid);
+    sysArg.arg4 = (void *) ( (long) 0);
+    USLOSS_Console("spawn(): about to return\n");
+    return;
+}
+/* ------------------------------------------------------------------------
+Name - spawnReal(Incomplete)
+Purpose - Calls fork1 then spawnLaunch to launch code
+Parameters - 
+Returns - the pid given from fork1
+Side Effects - none.
+
+spawnReal() will create the process by using a call to fork1 to
+create a process executing the code in spawnLaunch().  
+
+spawnReal() and spawnLaunch() then coordinate the completion
+of the phase 3 process table entries needed for the new process.
+
+spawnReal() will return to the original caller of Spawn, while
+spawnLaunch() will begin executing the function passed to Spawn. 
+
+spawnLaunch() will need to switch to user-mode before allowing 
+user code to execute. 
+
+spawnReal() will return to spawn(),
+which will put the return values back into the sysargs pointer,
+switch to user-mode, and  return to the user code that called Spawn.
+
+----------------------------------------------------------------------- */
+int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_size, int priority)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): Started\n");
+    //int parentpid = getpid(); //need to add to the childrens list
+    int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
+    //add to the procTable
+    ProcTable[pid%MAXPROC] = (procStruct){
+        .pid = pid,
+        .start_func = func,
+        .stackSize = stack_size,
+        .priority = priority
+    };
+    memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
+    if (arg != NULL){
+        memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
+    }
+
+
+    // I don't think this needs more stuff, the rest of the stuff gets done 
+    // when spawnLaunch is finally called
+
+    return pid;
+}
+    /* ------------------------------------------------------------------------
+   Name - spawnLaunch(Incomplete)
+   Purpose - This actually launches the spawn code. 
    Parameters - 
    Returns - 
    Side Effects - none.
    ----------------------------------------------------------------------- */
-void spawn(systemArgs sysArg)
-{
-    //Need to do a validity check on sysArgs for arg4
-    int pid = spawnReal(sysArg.arg5, sysArg.arg1, sysArg.arg2, (unsigned int) sysArg.arg3, (int) sysArg.arg4);
-    sysArg.arg1 = (void*) ( (long) pid);
-    sysArg.arg4 = (void *) ( (long) 0);
+void spawnLaunch() {
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnLaunch(): Started\n");
+    int result;
+    int procIndex = getpid()%MAXPROC;
+    //There should be some kind of Semaphore call here
+    
+
+    // Switching to user mode.
+    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+
+    result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
+    
+    terminateReal(result); // This may be wrong
 }
 
    /* ------------------------------------------------------------------------
@@ -123,51 +213,20 @@ void terminate(systemArgs sysArg)
 {
     terminateReal((int) sysArg.arg1);
 }
+
     /* ------------------------------------------------------------------------
-   Name - spawnReal(Incomplete)
-   Purpose - Calls fork1 then spawnLaunch to launch code
-   Parameters - 
-   Returns - the pid given from fork1
-   Side Effects - none.
-   ----------------------------------------------------------------------- */
-int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_size, int priority)
-{
-    //int parentpid = getpid(); //need to add to the childrens list
-    int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
-    //add to the procTable
-    ProcTable[pid%MAXPROC] = (procStruct){
-        .pid = pid,
-        .start_func = func,
-        .stackSize = stack_size,
-        .priority = priority
-    };
-    memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
-    memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
-    spawnLaunch();
-    return pid;
-}
-    /* ------------------------------------------------------------------------
-   Name - spawnLaunch(Incomplete)
-   Purpose - This actually launches the spawn code. 
-   Parameters - 
-   Returns - 
-   Side Effects - none.
-   ----------------------------------------------------------------------- */
-void spawnLaunch() {
-    int result;
-    //There should be some kind of Semaphore call here
-    result = ProcTable[getpid()%MAXPROC].start_func(ProcTable[getpid()%MAXPROC].startArg);
-    terminateReal(result); // This may be wrong
-}
-    /* ------------------------------------------------------------------------
-   Name - waitReal (Stilld do not know how to do this)
+   Name - waitReal (Still do not know how to do this)
    Purpose - 
    Parameters - 
    Returns - 
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int waitReal(int * status) {
-    return -1;
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("waitReal(): Started\n");
+
+
+    join(status);
 }
     /* ------------------------------------------------------------------------
    Name - terminateReal (Incomplete)
@@ -243,7 +302,7 @@ void nullsys3(){
     USLOSS_Halt(1);
 }
 
-    /* ------------------------------------------------------------------------
+/* ------------------------------------------------------------------------
    Name - check_kernel_mode
    Purpose - To check if a user level mode is invoked trying to execute kernel mode function
    Parameters - you can pass in the current process name to get a nice debug statement
@@ -253,12 +312,13 @@ void nullsys3(){
 static void check_kernel_mode(char* name)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("%s(): called check_kernel_mode\n");
-      if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0 ) {
+        USLOSS_Console("%s(): called check_kernel_mode\n", name);
+    if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0 ) {
         //not in kernel mode
         USLOSS_Console("Kernel Error: Not in kernel mode, may not ");
         USLOSS_Console("check_kernel_mode\n");
         USLOSS_Halt(1);
     }
+
 } /* check_kernel_mode */
 
