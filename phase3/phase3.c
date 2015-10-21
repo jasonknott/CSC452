@@ -93,11 +93,12 @@ Side Effects - none.
 void spawn(systemArgs sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawn(): Started\n");
-    USLOSS_Console("pri: %i\n", sysArg.arg4);
+
+    USLOSS_Console("spawn(): pri: %i\n", (long)sysArg.arg4);
     int (*func)(char *) = sysArg.arg1;
     char *arg = sysArg.arg2;
     int stack_size = sysArg.arg3;
-    int priority = sysArg.arg4;
+    int priority = ((int*)sysArg.arg4);
     char *name = sysArg.arg5;
     //Need to do a validity check on sysArgs for arg4
     // More error checking like this
@@ -105,6 +106,7 @@ void spawn(systemArgs sysArg){
         sysArg.arg4 = -1;
         return;
     }
+
     // Switch to kernal mode
     USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
 
