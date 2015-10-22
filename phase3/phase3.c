@@ -6,6 +6,7 @@
 #include <usyscall.h>
 #include <string.h>
 #include <libuser.h>
+#include <sems.h>
 //---------------------------- Function Prototypes ----------------------------
 extern int start3(char *);
 void spawn(systemArgs*);
@@ -17,6 +18,7 @@ int waitReal(int *);
 void terminateReal(int );
 void initializeProcTable();
 void initializeSystemCallVec();
+void initializeSemTable();
 void nullsys3();
 void addtoChildList(procPtr , procPtr *);
 void zapAndCleanAllChildren(procPtr *);
@@ -28,6 +30,8 @@ static void check_kernel_mode(char* );
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
+
+semaphore SemTable[MAX_SEMS];
 int debugflag3 = 0;
 
 int start2(char *arg)
@@ -45,8 +49,10 @@ int start2(char *arg)
      */
      //Initialize ProcTable
      initializeProcTable();
-     //Initialize SystemCallVec
+     // Initialize SystemCallVec
      initializeSystemCallVec();
+     // Initialize SemTable
+     initializeSemTable();
 
     /*
      * Create first user-level process and wait for it to finish.
@@ -286,6 +292,105 @@ void terminateReal(int status){
     zapAndCleanAllChildren(&ProcTable[getpid()%MAXPROC].childProcPtr);
     quit(status);
 }
+
+
+/* ------------------------------------------------------------------------
+   Name - semCreate (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+void semCreate(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semCreate(): Started\n");
+    int value = sysArg->arg1;
+
+
+    if (value < 0 ){
+        sysArg->arg4 = -1;
+        return;
+    }
+
+    int i = 0;
+    while(SemTable[i].id != -1 && i < MAX_SEMS){
+
+        i++;
+    }
+
+    if (i == MAX_SEMS){
+        // The SemTable is full
+        sysArg->arg4 = -1;  
+        return;     
+    }
+
+    sysArg->arg4 = 0;
+    int mBoxID = MboxCreate(value, 0);
+    SemTable[i].mBoxID = mBoxID;
+    SemTable[i].value = value;
+    SemTable[i].id = i;
+
+    sysArg->arg1 = i;
+}
+
+/* ------------------------------------------------------------------------
+   Name - semP (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+
+   Subtracting
+   ----------------------------------------------------------------------- */
+void semP(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semP(): Started\n");
+    int handler = sysArg->arg1;
+
+    if(handler < 0 || handler > MAX_SEMS){
+        sysArg->arg4 = -1;
+        return;
+    }
+
+
+    sysArg->arg4 = 0;
+    int mBoxID = SemTable[handler].mBoxID;
+    MboxReceive(mBoxID, NULL, 0);
+
+    return;
+
+}
+
+
+/* ------------------------------------------------------------------------
+   Name - semV (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+
+   Adding
+   ----------------------------------------------------------------------- */
+void semV(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semV(): Started\n");
+
+    int handler = sysArg->arg1;
+
+    if(handler < 0 || handler > MAX_SEMS){
+        sysArg->arg4 = -1;
+        return;
+    }
+
+
+    sysArg->arg4 = 0;
+    int mBoxID = SemTable[handler].mBoxID;
+    MboxSend(mBoxID, NULL, 0);
+    return;
+
+
+}
+
     /* ------------------------------------------------------------------------
    Name - initializeProcTable(maybe Incomplete?)
    Purpose - Initializes the process table
@@ -329,14 +434,29 @@ void initializeSystemCallVec(){
     systemCallVec[SYS_SPAWN] = (void *)spawn;
     systemCallVec[SYS_WAIT] = (void *)wait_3;
     systemCallVec[SYS_TERMINATE] = (void *) terminate;
-        //These functions still need to be created
-    //systemCallVec[SYS_SEMCREATE]=
-    //systemCallVec[SYS_SEMP]=
-    //systemCallVec[SYS_SEMV]=
+    systemCallVec[SYS_SEMCREATE]=(void *)semCreate;
+    systemCallVec[SYS_SEMP]=(void *)semP;
+    systemCallVec[SYS_SEMV]=(void *)semV;
+    //These functions still need to be created
+
     //systemCallVec[SYS_SEMFREE]=
     //systemCallVec[SYS_GETTIMEOFDAY]=
     //systemCallVec[SYS_CPUTIME]=
     //systemCallVec[SYS_GETPID]=
+}
+
+void initializeSemTable(){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("Initializing ProcTable\n");
+    int i;
+    for(i =0; i<MAX_SEMS; i++){
+        SemTable[i] = (semaphore){
+            .id = -1,
+            .value = -1,
+            .blockedProcPtr = NULL,
+            .mBoxID = -1,
+        };
+    }
 }
 
     /* ------------------------------------------------------------------------

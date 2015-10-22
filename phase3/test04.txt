@@ -1,2 +1,4 @@
 start3(): started.  Calling SemCreate
-nullsys3(): called. Halting...
+start3(): sem_result = 0, semaphore = 0
+start3(): sem_result = 0, semaphore = 1
+All processes completed.
