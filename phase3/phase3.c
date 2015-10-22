@@ -358,7 +358,6 @@ int semCreateReal(int value){
         i++;
     }
 
-<<<<<<< HEAD
     int priv_mBoxID = MboxCreate(value, 0);
     int mutex_mBoxID = MboxCreate(1, 0);
     int free_mBoxID = MboxCreate(0, 0);
@@ -374,12 +373,6 @@ int semCreateReal(int value){
     int j;
     for (j = 0; j < value; ++j){
         MboxSend(priv_mBoxID, NULL, 0);
-=======
-    if (i == MAX_SEMS){
-        // The SemTable is full
-        sysArg->arg4 = (void*)(long) -1;
-        return;
->>>>>>> c0ccfe76914413703f6bdb326a82e2b1fd0953d1
     }
     // USLOSS_Console("SemTable[i].id %i\n", i);
 
