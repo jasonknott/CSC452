@@ -1,3 +1,0 @@
-start3(): started
-start3(): spawned process 5
-nullsys3(): called. Halting...
