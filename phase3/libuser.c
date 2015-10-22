@@ -46,9 +46,7 @@ int Spawn(char *name, int (*func)(char *), char *arg, int stack_size,
     sysArg.arg4 = (void *) ( (long) priority);
     sysArg.arg5 = name;
 
-    USLOSS_Console("Spawn(): pri: %i\n", sysArg.arg4);
     USLOSS_Syscall(&sysArg);
-    USLOSS_Console("Spawn(): returned from spawn\n");
     *pid = (long) sysArg.arg1;
 
     return (long) sysArg.arg4;
