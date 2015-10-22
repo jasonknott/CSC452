@@ -23,5 +23,6 @@
  	procPtr         nextProcPtr;
  	procPtr         childProcPtr;
  	procPtr         nextSiblingPtr;
+ 	int				privateMBoxID;
  };
 

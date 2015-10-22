@@ -74,6 +74,9 @@ int start2(char *arg)
      */
     pid = spawnReal("start3", start3, NULL, USLOSS_MIN_STACK, 3);
 
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("start2(): spawned start3 PID #%i\n", pid);    
+
 
     /* Call the waitReal version of your wait code here.
      * You call waitReal (rather than Wait) because start2 is running
@@ -93,12 +96,10 @@ Side Effects - none.
 void spawn(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawn(): Started\n");
-    int i = (long) sysArg->arg4;
-    USLOSS_Console("spawn(): pri: %i\n", i);
     int (*func)(char *) = sysArg->arg1;
     char *arg = sysArg->arg2;
-    int stack_size = sysArg->arg3;
-    int priority = ((int*)sysArg->arg4);
+    int stack_size = (long)sysArg->arg3;
+    int priority = (long)sysArg->arg4;
     char *name = sysArg->arg5;
     //Need to do a validity check on sysArgs for arg4
     // More error checking like this
@@ -114,7 +115,6 @@ void spawn(systemArgs *sysArg){
     int pid = spawnReal(name, func, arg, stack_size, priority);
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg4 = (void *) ( (long) 0);
-    USLOSS_Console("spawn(): about to return\n");
     return;
 }
 /* ------------------------------------------------------------------------
@@ -145,20 +145,42 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): Started\n");
-    //int parentpid = getpid(); //need to add to the childrens list
+
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): About to fork %s at priority %i\n", name, priority);
+    
+
+
     int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
+
+    int childMboxID;
+
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): Finished fork of %s, pid: %i\n", name, pid);
     //add to the procTable
-    ProcTable[pid%MAXPROC] = (procStruct){
-        .pid = pid,
-        .start_func = func,
-        .stackSize = stack_size,
-        .priority = priority
-    };
+    ProcTable[pid%MAXPROC].pid = pid;
+    ProcTable[pid%MAXPROC].start_func = func;
+    ProcTable[pid%MAXPROC].stackSize = stack_size;
+    ProcTable[pid%MAXPROC].priority = priority;
+
+    USLOSS_Console("The childs mailbox is: %i\n", ProcTable[pid%MAXPROC].privateMBoxID);
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
     if (arg != NULL){
         memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
     }
 
+    if (ProcTable[pid%MAXPROC].privateMBoxID == -1){
+        // it does not exist
+        childMboxID = MboxCreate(0,0);
+    } else {
+        // It does exist 
+        childMboxID = ProcTable[pid%MAXPROC].privateMBoxID;
+    }
+    ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
+    // Letting it's child go into the world (cry)
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): %i might block on mbox %i, might wait for child.\n", pid, childMboxID);
+    MboxReceive(childMboxID, NULL, 0);
 
     // I don't think this needs more stuff, the rest of the stuff gets done 
     // when spawnLaunch is finally called
@@ -175,10 +197,26 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 void spawnLaunch() {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): Started\n");
-    int result;
-    int procIndex = getpid()%MAXPROC;
-    //There should be some kind of Semaphore call here
     
+    int result;
+    int pid = getpid();
+    int procIndex = pid%MAXPROC;
+    int childMboxID; 
+
+
+    if (ProcTable[procIndex].privateMBoxID == -1){
+        // it does not exist
+        childMboxID = MboxCreate(0,0);
+    } else {
+        // It does exist 
+        childMboxID = ProcTable[procIndex].privateMBoxID;
+    }
+    ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
+
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnLaunch(): %i might block on mbox %i, might wait for parent\n", pid, ProcTable[procIndex].privateMBoxID);
+    // It will block here until the parent is ready to let it's child go, it's an emotional time.
+    MboxSend(childMboxID, NULL, 0);
 
     // Switching to user mode.
     USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
@@ -211,9 +249,10 @@ void wait_3(systemArgs *sysArg)
    Returns - 
    Side Effects - none.
    ----------------------------------------------------------------------- */
-void terminate(systemArgs *sysArg)
-{
-    terminateReal((int) sysArg.arg1);
+void terminate(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("terminate(): Started\n");
+    terminateReal((int) sysArg->arg1);
 }
 
     /* ------------------------------------------------------------------------
@@ -229,6 +268,8 @@ int waitReal(int * status) {
 
 
     join(status);
+
+    // Join can be zapped, return some stuff
 }
     /* ------------------------------------------------------------------------
    Name - terminateReal (Incomplete)
@@ -260,7 +301,8 @@ void initializeProcTable(){
             .stackSize = -1,
             .nextProcPtr = NULL,
             .childProcPtr = NULL,
-            .nextSiblingPtr = NULL
+            .nextSiblingPtr = NULL,
+            .privateMBoxID = -1,
         };
         memset(ProcTable[i].name, 0, sizeof(char)*MAXNAME);
         memset(ProcTable[i].startArg, 0, sizeof(char)*MAXARG);
