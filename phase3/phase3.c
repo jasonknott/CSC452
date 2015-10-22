@@ -5,6 +5,7 @@
 #include <phase3.h>
 #include <usyscall.h>
 #include <string.h>
+#include <libuser.h>
 //---------------------------- Function Prototypes ----------------------------
 extern int start3(char *);
 void spawn(systemArgs*);
@@ -27,7 +28,7 @@ static void check_kernel_mode(char* );
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
-int debugflag3 = 1;
+int debugflag3 = 0;
 
 int start2(char *arg)
 {
@@ -46,7 +47,6 @@ int start2(char *arg)
      initializeProcTable();
      //Initialize SystemCallVec
      initializeSystemCallVec();
-     //Do mboxCreate Stuff
 
     /*
      * Create first user-level process and wait for it to finish.
@@ -112,8 +112,8 @@ void spawn(systemArgs *sysArg){
         return;
     }
     // Switch to kernal mode
-    setKernelMode();
     int pid = spawnReal(name, func, arg, stack_size, priority);
+    setUserMode();
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg4 = (void *) ( (long) 0);
     return;
@@ -151,9 +151,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
         USLOSS_Console("spawnReal(): About to fork %s at priority %i\n", name, priority);
     
 
-
     int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
-
     int childMboxID;
 
     if(debugflag3 && DEBUG3)
@@ -164,7 +162,6 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     ProcTable[pid%MAXPROC].stackSize = stack_size;
     ProcTable[pid%MAXPROC].priority = priority;
 
-    USLOSS_Console("The childs mailbox is: %i\n", ProcTable[pid%MAXPROC].privateMBoxID);
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
     addtoChildList(&ProcTable[pid&MAXPROC], &ProcTable[getpid()&MAXPROC].childProcPtr);
     if (arg != NULL){
@@ -186,8 +183,6 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     // I don't think this needs more stuff, the rest of the stuff gets done 
     // when spawnLaunch is finally called
-
-    setUserMode();
 
     return pid;
 }
@@ -218,16 +213,15 @@ void spawnLaunch() {
     ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
 
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnLaunch(): %i might block on mbox %i, might wait for parent\n", pid, ProcTable[procIndex].privateMBoxID);
+        USLOSS_Console("SpawnLaunch(): %i might block on mbox %i, might wait for parent\n", pid, ProcTable[procIndex].privateMBoxID);
     // It will block here until the parent is ready to let it's child go, it's an emotional time.
     MboxSend(childMboxID, NULL, 0);
 
 
     // Switching to user mode.
-
+    setUserMode();
     result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
-
-    terminateReal(result); // This may be wrong
+    Terminate(result); // This may be wrong
 }
 
    /* ------------------------------------------------------------------------
@@ -238,7 +232,8 @@ void spawnLaunch() {
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void wait_3(systemArgs *sysArg)
-{   int status;
+{
+    int status;
     //need to check if process had children
     setKernelMode();
 
@@ -286,9 +281,10 @@ int waitReal(int * status) {
    ----------------------------------------------------------------------- */
 void terminateReal(int status){
     //More stuff to come
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("terminateReal(): called\n");
     zapAndCleanAllChildren(&ProcTable[getpid()%MAXPROC].childProcPtr);
     quit(status);
-    setUserMode();
 }
     /* ------------------------------------------------------------------------
    Name - initializeProcTable(maybe Incomplete?)
@@ -442,7 +438,7 @@ void setKernelMode(){
    ----------------------------------------------------------------------- */
 void setUserMode(){
     if(debugflag3&& DEBUG3)
-        USLOSS_Console("setKernelMode(): called\n");
+        USLOSS_Console("setUserMode(): called\n");
     USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
 }
 /* ------------------------------------------------------------------------
