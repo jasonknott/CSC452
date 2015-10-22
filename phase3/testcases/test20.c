@@ -14,12 +14,13 @@ int sem1;
 
 int start3(char *arg)
 {
-    int result;
+    // int result;
     int pid;
     int status;
 
     USLOSS_Console("start3(): started\n");
-    result = SemCreate(3, &sem1);
+    // result = SemCreate(3, &sem1);
+    SemCreate(3, &sem1);
     SemP(sem1);
     USLOSS_Console("start3(): After P in the CS\n");
     Spawn("Child1", Child1, "Child1", USLOSS_MIN_STACK, 2, &pid);

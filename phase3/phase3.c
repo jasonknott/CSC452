@@ -10,15 +10,20 @@
 //---------------------------- Function Prototypes ----------------------------
 extern int start3(char *);
 void spawn(systemArgs*);
-void wait_3(systemArgs*);
-void terminate(systemArgs*);
-int spawnReal(char *, int (*func)(char *), char *, unsigned int , int );
 void spawnLaunch();
-int waitReal(int *);
+int  spawnReal(char *, int (*func)(char *), char *, unsigned int , int );
+void wait_3(systemArgs*);
+int  waitReal(int *);
+void terminate(systemArgs*);
 void terminateReal(int );
-void initializeProcTable();
-void initializeSystemCallVec();
-void initializeSemTable();
+void semCreate(systemArgs*);
+int semCreateReal(int);
+void semP(systemArgs*);
+void semPReal(int);
+void semV(systemArgs*);
+void semVReal(int);
+void semFree(systemArgs*);
+int semFreeReal(int);
 void nullsys3();
 void addtoChildList(procPtr , procPtr *);
 void addtoProcList(procPtr node, procPtr *list);
@@ -33,13 +38,16 @@ void getCPUTime(systemArgs*);
 int getCPUTimeReal();
 void getPID(systemArgs* sysArg);
 int getPIDReal();
+void initializeProcTable();
+void initializeSystemCallVec();
+void initializeSemTable();
 //-----------------------------------------------------------------------------
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
 
 semaphore SemTable[MAX_SEMS];
-int debugflag3 = 1;
+int debugflag3 = 0;
 
 int start2(char *arg)
 {
@@ -308,31 +316,57 @@ void semCreate(systemArgs *sysArg){
         USLOSS_Console("semCreate(): Started\n");
     int value = (long) sysArg->arg1;
 
-
     if (value < 0 ){
-        sysArg->arg4 = (void*)(long)-1;
+        sysArg->arg4 = (void*)(long) -1;
         return;
     }
 
+    int id = semCreateReal(value);
+    
+    if (id == MAX_SEMS){
+        // The SemTable is full
+        sysArg->arg4 = (void*)(long) -1;       
+    } else{
+        sysArg->arg4 = (void*)(long) 0;
+        sysArg->arg1 = (void*)(long) id;
+    }
+    return;
+
+}
+
+/* ------------------------------------------------------------------------
+   Name - semCreateReal (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+int semCreateReal(int value){
+    // Picking a slot in the table
     int i = 0;
     while(SemTable[i].id != -1 && i < MAX_SEMS){
-
         i++;
     }
 
-    if (i == MAX_SEMS){
-        // The SemTable is full
-        sysArg->arg4 = (void*)(long) -1;  
-        return;     
+    int priv_mBoxID = MboxCreate(value, 0);
+    int mutex_mBoxID = MboxCreate(1, 0);
+    int free_mBoxID = MboxCreate(0, 0);
+
+    SemTable[i].priv_mBoxID =   priv_mBoxID;
+    SemTable[i].mutex_mBoxID =  mutex_mBoxID;
+    SemTable[i].free_mBoxID =   free_mBoxID;
+    SemTable[i].value =         value;
+    SemTable[i].startingValue = value;
+    SemTable[i].id =            i;
+
+    // Send lots of stuff to the mail box so people can pick it up and go on
+    int j;
+    for (j = 0; j < value; ++j){
+        MboxSend(priv_mBoxID, NULL, 0);
     }
+    // USLOSS_Console("SemTable[i].id %i\n", i);
 
-    sysArg->arg4 = 0;
-    int mBoxID = MboxCreate(value, 0);
-    SemTable[i].mBoxID = mBoxID;
-    SemTable[i].value = value;
-    SemTable[i].id = i;
-
-    sysArg->arg1 = (void*)(long)i;
+    return SemTable[i].id;
 }
 
 /* ------------------------------------------------------------------------
@@ -347,29 +381,44 @@ void semCreate(systemArgs *sysArg){
 void semP(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semP(): Started\n");
+
     int handler = (long)sysArg->arg1;
 
+    // Error checking
     if(handler < 0 || handler > MAX_SEMS){
         sysArg->arg4 = (void*)(long)-1;
         return;
+    }else{
+        sysArg->arg4 = 0;
     }
 
+    semPReal(handler);
 
-    sysArg->arg4 = 0;
-    int mBoxID = SemTable[handler].mBoxID;
+    return;
+}
+
+
+void semPReal(int handler){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semPReal(): Started\n");
+
     if (SemTable[handler].value == 0){
         // Add to blocked list
         addtoProcList(&ProcTable[getpid()%MAXPROC], &SemTable[handler].blockedProcPtr);
+        // block here on private mail
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semP(): About to block on mailBox %i\n", SemTable[handler].priv_mBoxID);
+        MboxReceive(SemTable[handler].priv_mBoxID, NULL, 0);
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semP(): Just freed from mailBox %i\n", SemTable[handler].priv_mBoxID);
     } else{
         SemTable[handler].value -= 1;
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semP(): Subtracting... value == %i\n", SemTable[handler].value);
     }
-
-    MboxReceive(mBoxID, NULL, 0);
-
+    // ERROR CHECKING WITH ZAPS NEED TO GO HERE
     return;
-
 }
-
 
 /* ------------------------------------------------------------------------
    Name - semV (Incomplete)
@@ -386,27 +435,48 @@ void semV(systemArgs *sysArg){
 
     int handler = (long)sysArg->arg1;
 
+    // Error checking
     if(handler < 0 || handler > MAX_SEMS){
         sysArg->arg4 = (void*)(long)-1;
         return;
+    }else{
+        sysArg->arg4 = 0;
     }
 
+    semVReal(handler);
+    return;
+}
 
-    sysArg->arg4 = 0;
-    int mBoxID = SemTable[handler].mBoxID;
+void semVReal(int handler){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semVReal(): Started\n");
 
+    /*If you try to send too many times to a mailbox it will block,
+    we don't want that so I'm checking if it's more than that and 
+    just adding and leaving if it is.*/
+    if (SemTable[handler].value > SemTable[handler].startingValue){
+        SemTable[handler].value += 1;
+        return;
+    }
+
+    /*It doesn't matter if the value is 0, but  it does matter if
+    people are blocked on the sem. If people are blocked, free them
+    and don't change the count.*/
     if (SemTable[handler].blockedProcPtr != NULL){
-        // There is something blocked 
-        // Unblock it, and keep value the same
-        procPtr proc = SemTable[handler].blockedProcPtr;
+        // procPtr proc = SemTable[handler].blockedProcPtr;
         popProcList(&SemTable[handler].blockedProcPtr);
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semV(): Sending to mbox %i\n", SemTable[handler].priv_mBoxID);
+        MboxSend(SemTable[handler].priv_mBoxID, NULL, 0);
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semV(): Running after sending to mBoxID %i\n", SemTable[handler].priv_mBoxID);
     } else {
         // Else add value
         SemTable[handler].value += 1;
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("semV(): Adding ... value == %i\n", SemTable[handler].value);
     }
 
-
-    MboxSend(mBoxID, NULL, 0);
     return;
 }
 
@@ -417,8 +487,6 @@ void semV(systemArgs *sysArg){
    Parameters - 
    Returns - 
    Side Effects - none.
-
-   Adding
    ----------------------------------------------------------------------- */
 void semFree(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
@@ -431,46 +499,54 @@ void semFree(systemArgs *sysArg){
         return;
     }
 
-    int mBoxID = SemTable[handler].mBoxID;
+    int rtnValue = semFreeReal(handler);
+
+    sysArg->arg4 = (void*)(long) rtnValue;
+    return;
+
+}
+
+int semFreeReal(int handler){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semFree(): Started\n");
+
+    // int mBoxID = SemTable[handler].mBoxID;
     procPtr blocked = SemTable[handler].blockedProcPtr;
-
-    while(blocked != NULL){
-        USLOSS_Console("Proc name: %s\n",blocked->name);
-        blocked = blocked->nextProcPtr;
-    }
-
-    blocked = SemTable[handler].blockedProcPtr;
-
-
-
-
+    // clearing out SemTable
     SemTable[handler].id = -1;
     SemTable[handler].value = -1;
+    SemTable[handler].startingValue = -1;
     SemTable[handler].blockedProcPtr = NULL;
-    SemTable[handler].mBoxID = -1;
+    SemTable[handler].priv_mBoxID = -1;
+    SemTable[handler].mutex_mBoxID = -1;
+    SemTable[handler].free_mBoxID = -1;
+
+    // Debug stuff
+    if(debugflag3 && DEBUG3){
+        while(blocked != NULL){
+            USLOSS_Console("Proc name: %s\n",blocked->name);
+            blocked = blocked->nextProcPtr;
+        }
+        blocked = SemTable[handler].blockedProcPtr;
+    }
 
     if(blocked != NULL){
-        // There are blocked processes
-        // KILL THEM ALL WITH FIRE!
-        zapAndCleanAllProc(&SemTable[handler].blockedProcPtr);
+        while(blocked != NULL){
+            // There are blocked processes
+            // Let them all go by sending to mailbox
+            popProcList(&blocked);
+            // blocked = SemTable[handler].blockedProcPtr;
 
-        USLOSS_Console("After zapAndCleanAllProc\n");
-
-
-    procPtr blocked = SemTable[handler].blockedProcPtr;
-
-    while(blocked != NULL){
-        USLOSS_Console("Proc name: %s\n",blocked->name);
-        blocked = blocked->nextProcPtr;
+            MboxSend(SemTable[handler].priv_mBoxID, NULL, 0);
+        }
+        return 1;
+    }
+    else{
+        return 0;
     }
 
-    blocked = SemTable[handler].blockedProcPtr;
 
-        sysArg->arg4 = (void*)(long) 1;
-        return;
-    }
 
-    sysArg->arg4 = (void*)(long) 0;
 }
 
     /* ------------------------------------------------------------------------
@@ -616,9 +692,13 @@ void initializeSemTable(){
         SemTable[i] = (semaphore){
             .id = -1,
             .value = -1,
+            .startingValue = -1,
             .blockedProcPtr = NULL,
-            .mBoxID = -1,
+            .priv_mBoxID = -1,
+            .mutex_mBoxID = -1,
+            .free_mBoxID = -1
         };
+
     }
 }
 
