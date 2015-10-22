@@ -240,8 +240,6 @@ void wait_3(systemArgs *sysArg)
 {
     int status;
     //need to check if process had children
-    setKernelMode();
-
     int pid = waitReal(&status);
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg2 = (void*) ( (long) status);
@@ -273,7 +271,6 @@ void terminate(systemArgs *sysArg){
 int waitReal(int * status) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("waitReal(): Started\n");
-    setKernelMode();
     int r_stat = join(status);
     return r_stat;
 }
