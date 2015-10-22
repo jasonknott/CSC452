@@ -28,7 +28,10 @@ void nullsys3();
 void addtoChildList(procPtr , procPtr *);
 void addtoProcList(procPtr node, procPtr *list);
 void popProcList(procPtr*);
-void zapAndCleanAllChildren(procPtr *);
+void zapAndCleanAllChildren(procPtr );
+void zapAndCleanAllProc(procPtr *);
+void removeFromChildrenList(int, procPtr *, int);
+void removeFromParentList(int );
 void cleanProcess(int);
 static void setUserMode();
 static void check_kernel_mode(char* );
@@ -181,6 +184,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     ProcTable[pid%MAXPROC].start_func = func;
     ProcTable[pid%MAXPROC].stackSize = stack_size;
     ProcTable[pid%MAXPROC].priority = priority;
+    ProcTable[pid%MAXPROC].parentPid = getpid();
 
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
     addtoChildList(&ProcTable[pid&MAXPROC], &ProcTable[getpid()&MAXPROC].childProcPtr);
@@ -237,9 +241,13 @@ void spawnLaunch() {
     MboxSend(childMboxID, NULL, 0);
 
     // Switching to user mode.
-    setUserMode();
-    result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
-    Terminate(result); // This may be wrong
+    if(!isZapped()){
+        setUserMode();
+        result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
+        Terminate(result); // This may be wrong
+    }else {
+        terminateReal(0);
+    }
 }
 
    /* ------------------------------------------------------------------------
@@ -299,7 +307,9 @@ void terminateReal(int status){
     //More stuff to come
     if(debugflag3 && DEBUG3)
         USLOSS_Console("terminateReal(): called\n");
-    zapAndCleanAllChildren(&ProcTable[getpid()%MAXPROC].childProcPtr);
+    zapAndCleanAllChildren(ProcTable[getpid()%MAXPROC].childProcPtr);
+    removeFromParentList(ProcTable[getpid()%MAXPROC].parentPid);
+    cleanProcess(getpid());
     quit(status);
 }
 
@@ -348,6 +358,7 @@ int semCreateReal(int value){
         i++;
     }
 
+<<<<<<< HEAD
     int priv_mBoxID = MboxCreate(value, 0);
     int mutex_mBoxID = MboxCreate(1, 0);
     int free_mBoxID = MboxCreate(0, 0);
@@ -363,6 +374,12 @@ int semCreateReal(int value){
     int j;
     for (j = 0; j < value; ++j){
         MboxSend(priv_mBoxID, NULL, 0);
+=======
+    if (i == MAX_SEMS){
+        // The SemTable is full
+        sysArg->arg4 = (void*)(long) -1;
+        return;
+>>>>>>> c0ccfe76914413703f6bdb326a82e2b1fd0953d1
     }
     // USLOSS_Console("SemTable[i].id %i\n", i);
 
@@ -722,7 +739,7 @@ void nullsys3(){
  *  --------------------------------------------------------------------------- */
 void addtoChildList(procPtr node, procPtr *list) {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("addtoChildList(): called\n");
+        USLOSS_Console("addtoChildList(): called for the parent pid: %i\n", getpid());
     if(*list == NULL) {
         *list = node;
         return;
@@ -782,20 +799,20 @@ void popProcList(procPtr *list) {
    Returns - nothing
    Side Effects - Halts OS if system is not in kernel mode
    ----------------------------------------------------------------------- */
-void zapAndCleanAllChildren(procPtr *list)
+void zapAndCleanAllChildren(procPtr list)
 {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("zapAndCleanAllChildren(): called\n");
-    if(*list == NULL)
+    if(list == NULL)
         return;
-    procPtr curr = *list;
+    procPtr curr = list;
     while(curr != NULL){
         int pid = curr->pid;
         zap(pid);
         curr = curr->nextSiblingPtr;
-        cleanProcess(pid);
+        //cleanProcess(pid);
     }
-    *list = NULL;
+    //*list = NULL;
     return;
 }
 
@@ -811,7 +828,7 @@ void zapAndCleanAllChildren(procPtr *list)
 void zapAndCleanAllProc(procPtr *list)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("zapAndCleanAllChildren(): called\n");
+        USLOSS_Console("zapAndCleanAllProc(): called\n");
     if(*list == NULL)
         return;
     procPtr curr = *list;
@@ -819,12 +836,68 @@ void zapAndCleanAllProc(procPtr *list)
         int pid = curr->pid;
         zap(pid);
         curr = curr->nextProcPtr;
-        cleanProcess(pid);
     }
-    *list = NULL;
     return;
 }
-
+/* ------------------------------------------------------------------------
+   Name - removeFromParentList
+   Purpose - if the child calls Terminate, it will remove itself from the
+             parent's list
+   Parameters - parent_pid
+   Returns - nothing
+   Side Effects - nothing
+   ----------------------------------------------------------------------- */
+void removeFromParentList(int parent_pid)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("removeFromParentList(): called for parent pid: %i\n", parent_pid);
+    if(getpid() == 4 || parent_pid == -1)
+        //if it is start3 you do not want to remove it from the parent's list
+        return;
+    else
+    {
+        removeFromChildrenList(getpid(),&ProcTable[parent_pid%MAXPROC].childProcPtr, parent_pid);
+    }
+}
+/* ------------------------------------------------------------------------
+   Name - removeFromChildrenList
+   Purpose - removes a specific pid from the children's list
+   Parameters - list of children, and pid that needs to be removed
+   Returns - nothing
+   Side Effects - Halts OS if system is not in kernel mode
+   ----------------------------------------------------------------------- */
+void removeFromChildrenList(int pid, procPtr * list, int parent_pid)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("removeFromChildrenList(): called for pid: %i\n", pid);
+    if(*list == NULL) {
+        if(debugflag3 && DEBUG3) {
+            USLOSS_Console("Error! Children List is NULL!!!!!\n");
+            USLOSS_Console("Parent Pid: %i\n", parent_pid);
+        }
+        return;
+     //   USLOSS_Halt(1);
+    }
+    if(((procPtr) *list)->pid == pid)
+    {
+        procPtr temp = *list;
+        *list = temp->nextSiblingPtr;
+        temp->nextSiblingPtr = NULL;
+        temp->parentPid = -1;
+        return;
+    }
+    procPtr prev = *list;
+    procPtr curr = *list;
+    while(curr->pid != pid)
+    {
+        prev = curr;
+        curr = curr->nextSiblingPtr;
+    }
+    prev->nextSiblingPtr = curr->nextSiblingPtr;
+    curr->nextSiblingPtr= NULL;
+    curr->parentPid = -1;
+    return;
+}
 /* ------------------------------------------------------------------------
    Name - cleanProcess
    Purpose - To clear out the process from the table
@@ -844,6 +917,7 @@ void cleanProcess(int pid)
     ProcTable[pid%MAXPROC].childProcPtr = NULL;
     ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
     ProcTable[pid%MAXPROC].privateMBoxID = -1;
+    ProcTable[pid%MAXPROC].parentPid = -1;
     memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
 }

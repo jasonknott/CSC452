@@ -17,12 +17,13 @@
  	int pid;
  	int priority;
  	char name[MAXNAME];
- 	char            startArg[MAXARG]; 
+ 	char            startArg[MAXARG];
  	int (* start_func) (char *);
  	unsigned int    stackSize;
  	procPtr         nextProcPtr;
  	procPtr         childProcPtr;
  	procPtr         nextSiblingPtr;
  	int				privateMBoxID;
+    int             parentPid;
  };
 
