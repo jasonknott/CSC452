@@ -45,7 +45,6 @@ int Spawn(char *name, int (*func)(char *), char *arg, int stack_size,
     sysArg.arg3 = (void *) ( (long) stack_size);
     sysArg.arg4 = (void *) ( (long) priority);
     sysArg.arg5 = name;
-
     USLOSS_Syscall(&sysArg);
     *pid = (long) sysArg.arg1;
 

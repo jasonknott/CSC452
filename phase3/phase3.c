@@ -96,7 +96,6 @@ Side Effects - none.
 void spawn(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawn(): Started\n");
-
     int (*func)(char *) = sysArg->arg1;
     char *arg = sysArg->arg2;
     int stack_size = (long) sysArg->arg3;
