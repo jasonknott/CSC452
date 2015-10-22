@@ -1,9 +1,6 @@
 #!/bin/sh
 #dir=/home/cs452/fall15/phase3/testResults
-<<<<<<< HEAD:phase3/testphase3.sh
 # dir=/Users/patrick/Classes/452/project/phase3/testResults
-=======
->>>>>>> 6cb8d3981637edecf3a73ae260762783cfc165c1:phase3/testphase3.ksh
 dir=./testResults
 
 if [ "$#" -eq 0 ] 
