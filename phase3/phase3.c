@@ -86,14 +86,13 @@ int start2(char *arg)
      * begin executing the function passed to Spawn. spawnLaunch() will
      * need to switch to user-mode before allowing user code to execute.
      * spawnReal() will return to spawn(), which will put the return
-     * values back into the sysargs pointer, switch to user-mode, and 
+     * values back into the sysargs pointer, switch to user-mode, and
      * return to the user code that called Spawn.
      */
     pid = spawnReal("start3", start3, NULL, USLOSS_MIN_STACK, 3);
 
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("start2(): spawned start3 PID #%i\n", pid);    
-
+        USLOSS_Console("start2(): spawned start3 PID #%i\n", pid);
 
     /* Call the waitReal version of your wait code here.
      * You call waitReal (rather than Wait) because start2 is running
@@ -105,9 +104,9 @@ int start2(char *arg)
 
 /* ------------------------------------------------------------------------
 Name - spawn
-Purpose - Extracts arguments. 
-Parameters - 
-Returns - 
+Purpose - Extracts arguments for the Spawn Syscall
+Parameters -systemArgs(fork1 arguments and address of pid)
+Returns - pid in arg1 and 0(if success or -1 if fails) in arg4
 Side Effects - none.
 ----------------------------------------------------------------------- */
 void spawn(systemArgs *sysArg){
@@ -134,7 +133,8 @@ void spawn(systemArgs *sysArg){
 /* ------------------------------------------------------------------------
 Name - spawnReal(Incomplete)
 Purpose - Calls fork1 then spawnLaunch to launch code
-Parameters - 
+Parameters - arguments of fork1 
+    char *name, int (*func)(char *), char *arg, unsigned int stack_size, int priority
 Returns - the pid given from fork1
 Side Effects - none.
 
@@ -162,7 +162,6 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): About to fork %s at priority %i\n", name, priority);
-    
 
     int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
     int childMboxID;
@@ -194,33 +193,32 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
         USLOSS_Console("spawnReal(): %i might block on mbox %i, might wait for child.\n", pid, childMboxID);
     MboxReceive(childMboxID, NULL, 0);
 
-    // I don't think this needs more stuff, the rest of the stuff gets done 
+    // I don't think this needs more stuff, the rest of the stuff gets done
     // when spawnLaunch is finally called
 
     return pid;
 }
     /* ------------------------------------------------------------------------
    Name - spawnLaunch(Incomplete)
-   Purpose - This actually launches the spawn code. 
-   Parameters - 
-   Returns - 
+   Purpose - This actually launches the spawn code and terminates.
+   Parameters - none
+   Returns - none
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void spawnLaunch() {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): Started\n");
-    
+
     int result;
     int pid = getpid();
     int procIndex = pid%MAXPROC;
-    int childMboxID; 
-
+    int childMboxID;
 
     if (ProcTable[procIndex].privateMBoxID == -1){
         // it does not exist
         childMboxID = MboxCreate(0,0);
     } else {
-        // It does exist 
+        // It does exist
         childMboxID = ProcTable[procIndex].privateMBoxID;
     }
     ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
@@ -230,7 +228,6 @@ void spawnLaunch() {
     // It will block here until the parent is ready to let it's child go, it's an emotional time.
     MboxSend(childMboxID, NULL, 0);
 
-
     // Switching to user mode.
     setUserMode();
     result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
@@ -239,9 +236,9 @@ void spawnLaunch() {
 
    /* ------------------------------------------------------------------------
    Name - wait
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - This parses the arguments for wait_3.
+   Parameters - sysArg (passes in the address of status) arg2
+   Returns -returns the pid(arg1), status(arg2), and (-1 if success and bleh for failure) in arg4
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void wait_3(systemArgs *sysArg)
@@ -258,9 +255,10 @@ void wait_3(systemArgs *sysArg)
 
    /* ------------------------------------------------------------------------
    Name - terminate
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - parses the system arguments for terminateReal, which is the status
+             terminate.
+   Parameters - systemArgs. arg1 holds the status
+   Returns - nothing
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void terminate(systemArgs *sysArg){
@@ -271,9 +269,9 @@ void terminate(systemArgs *sysArg){
 
     /* ------------------------------------------------------------------------
    Name - waitReal (Still do not know how to do this)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - waits until child process quits.
+   Parameters - status. passes in the address of staus in join
+   Returns - returns the status of the join
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int waitReal(int * status) {
@@ -284,9 +282,9 @@ int waitReal(int * status) {
 }
     /* ------------------------------------------------------------------------
    Name - terminateReal (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - to terminate the current process that is running.
+   Parameters - status of the quit.
+   Returns - HELLFIRE.
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void terminateReal(int status){
@@ -477,9 +475,9 @@ void semFree(systemArgs *sysArg){
 
     /* ------------------------------------------------------------------------
    Name - getTimeOfDay (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - get the USLOSS version of getTimeOfDay
+   Parameters - systemArgs (nothing real)
+   Returns - in sysArg->arg1 is set to the time.
    Side Effects - none.
    ----------------------------------------------------------------------- */
 
@@ -492,9 +490,9 @@ void getTimeOfDay(systemArgs* sysArg){
 }
     /* ------------------------------------------------------------------------
    Name - getTimeOfDayReal (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - get True usless clock time
+   Parameters - nada
+   Returns - USLOSS_Clock
    Side Effects - none.
    ----------------------------------------------------------------------- */
 
@@ -503,9 +501,9 @@ int getTimeOfDayReal(){
 }
     /* ------------------------------------------------------------------------
    Name - getCPUTime (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - getCPUTIME from the depths of hell where no second has ever been.
+   Parameters - systemArgs(passer for addresses)
+   Returns - CPUTime in sysArg->arg1
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void getCPUTime(systemArgs* sysArg) {
@@ -517,9 +515,9 @@ void getCPUTime(systemArgs* sysArg) {
 }
 /* ------------------------------------------------------------------------
    Name - getCPUTimeReal (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - get CPUTime
+   Parameters - niet
+   Returns - readtime
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int getCPUTimeReal() {
@@ -527,9 +525,9 @@ int getCPUTimeReal() {
 }
     /* ------------------------------------------------------------------------
    Name - getPID (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - following suite from above. separates the getPIDReal from getPID;
+   Parameters - systemArgs
+   Returns - pid of the current process in sysArg->arg1
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void getPID(systemArgs* sysArg) {
@@ -541,9 +539,9 @@ void getPID(systemArgs* sysArg) {
 }
 /* ------------------------------------------------------------------------
    Name - getPIDReal (Incomplete)
-   Purpose - 
-   Parameters - 
-   Returns - 
+   Purpose - gets the PID
+   Parameters - nothing.
+   Returns - pid of the current process
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int getPIDReal() {
@@ -553,8 +551,8 @@ int getPIDReal() {
     /* ------------------------------------------------------------------------
    Name - initializeProcTable(maybe Incomplete?)
    Purpose - Initializes the process table
-   Parameters - 
-   Returns - 
+   Parameters -
+   Returns -
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void initializeProcTable(){
@@ -773,9 +771,9 @@ void cleanProcess(int pid)
 /* ------------------------------------------------------------------------
    Name - setUserMode
    Purpose - sets current mode to kernel Mode
-   Parameters -
+   Parameters - nothing
    Returns - nothing
-   Side Effects -
+   Side Effects -none
    ----------------------------------------------------------------------- */
 void setUserMode(){
     if(debugflag3&& DEBUG3)
