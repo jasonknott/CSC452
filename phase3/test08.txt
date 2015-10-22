@@ -1,3 +1,0 @@
-start3(): started.  Calling SemCreate
-start3(): freeing one semaphore
-nullsys3(): called. Halting...

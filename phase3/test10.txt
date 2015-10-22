@@ -1,4 +1,0 @@
-start3(): started
-start3(): calling Spawn for Child1a
-Child1a(): starting
-nullsys3(): called. Halting...

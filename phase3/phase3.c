@@ -23,9 +23,14 @@ void nullsys3();
 void addtoChildList(procPtr , procPtr *);
 void zapAndCleanAllChildren(procPtr *);
 void cleanProcess(int);
-static void setKernelMode();
 static void setUserMode();
 static void check_kernel_mode(char* );
+void getTimeOfDay(systemArgs*);
+int getTimeOfDayReal();
+void getCPUTime(systemArgs*);
+int getCPUTimeReal();
+void getPID(systemArgs* sysArg);
+int getPIDReal();
 //-----------------------------------------------------------------------------
 
 /* the process table */
@@ -241,8 +246,6 @@ void wait_3(systemArgs *sysArg)
 {
     int status;
     //need to check if process had children
-    setKernelMode();
-
     int pid = waitReal(&status);
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg2 = (void*) ( (long) status);
@@ -274,7 +277,6 @@ void terminate(systemArgs *sysArg){
 int waitReal(int * status) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("waitReal(): Started\n");
-    setKernelMode();
     int r_stat = join(status);
     return r_stat;
 }
@@ -392,6 +394,81 @@ void semV(systemArgs *sysArg){
 }
 
     /* ------------------------------------------------------------------------
+   Name - getTimeOfDay (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+
+void getTimeOfDay(systemArgs* sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("getTimeOfDay(): called\n");
+    int time = getTimeOfDayReal();
+    sysArg->arg1 = (void*) ((long) time);
+    return;
+}
+    /* ------------------------------------------------------------------------
+   Name - getTimeOfDayReal (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+
+int getTimeOfDayReal(){
+    return USLOSS_Clock();
+}
+    /* ------------------------------------------------------------------------
+   Name - getCPUTime (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+void getCPUTime(systemArgs* sysArg) {
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("getCPUTime(): called\n");
+    int time = getCPUTimeReal();
+    sysArg->arg1 = (void*)((long) time);
+    return;
+}
+/* ------------------------------------------------------------------------
+   Name - getCPUTimeReal (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+int getCPUTimeReal() {
+    return readtime();
+}
+    /* ------------------------------------------------------------------------
+   Name - getPID (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+void getPID(systemArgs* sysArg) {
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("getCPUTime(): called\n");
+    int pid = getPIDReal();
+    sysArg->arg1 = (void*)((long) pid);
+    return;
+}
+/* ------------------------------------------------------------------------
+   Name - getPIDReal (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+int getPIDReal() {
+    return getpid();
+}
+
+    /* ------------------------------------------------------------------------
    Name - initializeProcTable(maybe Incomplete?)
    Purpose - Initializes the process table
    Parameters - 
@@ -440,9 +517,9 @@ void initializeSystemCallVec(){
     //These functions still need to be created
 
     //systemCallVec[SYS_SEMFREE]=
-    //systemCallVec[SYS_GETTIMEOFDAY]=
-    //systemCallVec[SYS_CPUTIME]=
-    //systemCallVec[SYS_GETPID]=
+    systemCallVec[SYS_GETTIMEOFDAY]=(void *) getTimeOfDay;
+    systemCallVec[SYS_CPUTIME]= (void *) getCPUTime;
+    systemCallVec[SYS_GETPID]= (void *) getPID;
 }
 
 void initializeSemTable(){
@@ -513,6 +590,7 @@ void zapAndCleanAllChildren(procPtr *list)
         curr = curr->nextSiblingPtr;
         cleanProcess(pid);
     }
+    *list = NULL;
     return;
 }
 /* ------------------------------------------------------------------------
@@ -537,18 +615,6 @@ void cleanProcess(int pid)
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
 }
 
-/* ------------------------------------------------------------------------
-   Name - setKernelMode
-   Purpose - sets current mode to kernel Mode
-   Parameters -
-   Returns - nothing
-   Side Effects -
-   ----------------------------------------------------------------------- */
-void setKernelMode(){
-    if(debugflag3&& DEBUG3)
-        USLOSS_Console("setKernelMode(): called\n");
-    USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
-}
 /* ------------------------------------------------------------------------
    Name - setUserMode
    Purpose - sets current mode to kernel Mode

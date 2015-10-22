@@ -1,3 +1,0 @@
-start3(): started
-checkDeadlock(): numProc = 4
-checkDeadlock(): processes still present. Halting...

@@ -1,5 +1,0 @@
-start3(): started
-start3(): fork 5
-Child1(): starting
-start3(): Done.
-All processes completed.
