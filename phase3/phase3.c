@@ -27,7 +27,7 @@ static void check_kernel_mode(char* );
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
-int debugflag3 = 0;
+int debugflag3 = 1;
 
 int start2(char *arg)
 {
@@ -187,6 +187,8 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     // I don't think this needs more stuff, the rest of the stuff gets done 
     // when spawnLaunch is finally called
 
+    setUserMode();
+
     return pid;
 }
     /* ------------------------------------------------------------------------
@@ -238,10 +240,14 @@ void spawnLaunch() {
 void wait_3(systemArgs *sysArg)
 {   int status;
     //need to check if process had children
+    setKernelMode();
+
     int pid = waitReal(&status);
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg2 = (void*) ( (long) status);
     sysArg->arg4 = (void*) ( (long) -1);
+
+    setUserMode();
 }
 
    /* ------------------------------------------------------------------------
@@ -267,6 +273,7 @@ void terminate(systemArgs *sysArg){
 int waitReal(int * status) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("waitReal(): Started\n");
+    setKernelMode();
     int r_stat = join(status);
     return r_stat;
 }
