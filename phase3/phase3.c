@@ -17,12 +17,15 @@ void terminateReal(int );
 void initializeProcTable();
 void initializeSystemCallVec();
 void nullsys3();
+void addtoChildList(procPtr , procPtr *);
+void zapAndCleanAllChildren(procPtr *);
+void cleanProcess(int);
 static void check_kernel_mode(char* );
 //-----------------------------------------------------------------------------
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
-int debugflag3 = 1;
+int debugflag3 = 0;
 
 int start2(char *arg)
 {
@@ -98,19 +101,17 @@ void spawn(systemArgs *sysArg){
         USLOSS_Console("spawn(): Started\n");
     int (*func)(char *) = sysArg->arg1;
     char *arg = sysArg->arg2;
-    int stack_size = (long)sysArg->arg3;
-    int priority = (long)sysArg->arg4;
+    int stack_size = (long) sysArg->arg3;
+    int priority = (long) sysArg->arg4;
     char *name = sysArg->arg5;
     //Need to do a validity check on sysArgs for arg4
     // More error checking like this
     if (stack_size < USLOSS_MIN_STACK){
-        sysArg->arg4 = -1;
+        sysArg->arg4 = (void *) ( (long) -1);
         return;
     }
-
     // Switch to kernal mode
     USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
-
 
     int pid = spawnReal(name, func, arg, stack_size, priority);
     sysArg->arg1 = (void*) ( (long) pid);
@@ -165,6 +166,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     USLOSS_Console("The childs mailbox is: %i\n", ProcTable[pid%MAXPROC].privateMBoxID);
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
+    addtoChildList(&ProcTable[pid&MAXPROC], &ProcTable[getpid()&MAXPROC].childProcPtr);
     if (arg != NULL){
         memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
     }
@@ -265,11 +267,8 @@ void terminate(systemArgs *sysArg){
 int waitReal(int * status) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("waitReal(): Started\n");
-
-
-    join(status);
-
-    // Join can be zapped, return some stuff
+    int r_stat = join(status);
+    return r_stat;
 }
     /* ------------------------------------------------------------------------
    Name - terminateReal (Incomplete)
@@ -280,6 +279,7 @@ int waitReal(int * status) {
    ----------------------------------------------------------------------- */
 void terminateReal(int status){
     //More stuff to come
+    zapAndCleanAllChildren(&ProcTable[getpid()%MAXPROC].childProcPtr);
     quit(status);
 }
     /* ------------------------------------------------------------------------
@@ -311,8 +311,8 @@ void initializeProcTable(){
     /* ------------------------------------------------------------------------
    Name - initializeSystemCallVec(Incomplete)
    Purpose - Initializes all the systemCallVec
-   Parameters - 
-   Returns - 
+   Parameters -
+   Returns -
    Side Effects - none.
    ----------------------------------------------------------------------- */
 void initializeSystemCallVec(){
@@ -334,18 +334,84 @@ void initializeSystemCallVec(){
     //systemCallVec[SYS_CPUTIME]=
     //systemCallVec[SYS_GETPID]=
 }
+
     /* ------------------------------------------------------------------------
    Name - nullsys3 (Incomplete)
    Purpose - Unused system Calls for this phase should just point to here. Need to do more later.
-   Parameters - 
-   Returns - 
-   Side Effects - Halts system. 
+   Parameters -
+   Returns -
+   Side Effects - Halts system.
    ----------------------------------------------------------------------- */
 void nullsys3(){
     USLOSS_Console("nullsys3(): called. Halting...\n");
     USLOSS_Halt(1);
 }
+/*-------------------------------------------------------------------------
+ *  Name - addtoChildList
+ *  Purpose - adds to queue that is first come first serve base
+ *  Parameters - the node that we are adding and the list that it is being added to.
+ *  Returns - nothing
+ *  Side Effects - should be fine
+ *  --------------------------------------------------------------------------- */
+void addtoChildList(procPtr node, procPtr *list) {
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("addtoChildList(): called");
+    if(*list == NULL) {
+        *list = node;
+        return;
+    }
+    procPtr curr = *list;
+    while(curr->nextSiblingPtr != NULL) {
+        curr = curr -> nextSiblingPtr;
+    }
+    curr->nextSiblingPtr = node;
+    node->nextSiblingPtr = NULL;
+    return;
+}
 
+/* ------------------------------------------------------------------------
+   Name - zapAndCleanAllChildren
+   Purpose - To clear out the table on terminate
+   Parameters - list of children
+   Returns - nothing
+   Side Effects - Halts OS if system is not in kernel mode
+   ----------------------------------------------------------------------- */
+void zapAndCleanAllChildren(procPtr *list)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("zapAndCleanAllChildren(): called");
+    if(*list == NULL)
+        return;
+    procPtr curr = *list;
+    while(curr != NULL){
+        int pid = curr->pid;
+        zap(pid);
+        curr = curr->nextSiblingPtr;
+        cleanProcess(pid);
+    }
+    return;
+}
+/* ------------------------------------------------------------------------
+   Name - cleanProcess
+   Purpose - To clear out the process from the table
+   Parameters - pid
+   Returns - nothing
+   Side Effects - Halts OS if system is not in kernel mode
+   ----------------------------------------------------------------------- */
+void cleanProcess(int pid)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("cleanProcess(): called");
+    ProcTable[pid%MAXPROC].pid = -1;
+    ProcTable[pid%MAXPROC].priority = -1;
+    ProcTable[pid%MAXPROC].start_func = NULL;
+    ProcTable[pid%MAXPROC].stackSize = -1;
+    ProcTable[pid%MAXPROC].nextProcPtr = NULL;
+    ProcTable[pid%MAXPROC].childProcPtr = NULL;
+    ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
+    memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
+    memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
+}
 /* ------------------------------------------------------------------------
    Name - check_kernel_mode
    Purpose - To check if a user level mode is invoked trying to execute kernel mode function
