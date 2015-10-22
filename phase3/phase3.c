@@ -20,6 +20,8 @@ void nullsys3();
 void addtoChildList(procPtr , procPtr *);
 void zapAndCleanAllChildren(procPtr *);
 void cleanProcess(int);
+static void setKernelMode();
+static void setUserMode();
 static void check_kernel_mode(char* );
 //-----------------------------------------------------------------------------
 
@@ -34,7 +36,6 @@ int start2(char *arg)
     /*
      * Check kernel mode here.
      */
-
 
      check_kernel_mode("start3");
 
@@ -108,8 +109,7 @@ void spawn(systemArgs *sysArg){
         return;
     }
     // Switch to kernal mode
-    USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
-
+    setKernelMode();
     int pid = spawnReal(name, func, arg, stack_size, priority);
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg4 = (void *) ( (long) 0);
@@ -178,13 +178,11 @@ void spawnLaunch() {
     int result;
     int procIndex = getpid()%MAXPROC;
     //There should be some kind of Semaphore call here
-    
 
     // Switching to user mode.
-    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
 
     result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
-    
+
     terminateReal(result); // This may be wrong
 }
 
@@ -240,6 +238,7 @@ void terminateReal(int status){
     //More stuff to come
     zapAndCleanAllChildren(&ProcTable[getpid()%MAXPROC].childProcPtr);
     quit(status);
+    setUserMode();
 }
     /* ------------------------------------------------------------------------
    Name - initializeProcTable(maybe Incomplete?)
@@ -313,7 +312,7 @@ void nullsys3(){
  *  --------------------------------------------------------------------------- */
 void addtoChildList(procPtr node, procPtr *list) {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("addtoChildList(): called");
+        USLOSS_Console("addtoChildList(): called\n");
     if(*list == NULL) {
         *list = node;
         return;
@@ -337,7 +336,7 @@ void addtoChildList(procPtr node, procPtr *list) {
 void zapAndCleanAllChildren(procPtr *list)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("zapAndCleanAllChildren(): called");
+        USLOSS_Console("zapAndCleanAllChildren(): called\n");
     if(*list == NULL)
         return;
     procPtr curr = *list;
@@ -359,7 +358,7 @@ void zapAndCleanAllChildren(procPtr *list)
 void cleanProcess(int pid)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("cleanProcess(): called");
+        USLOSS_Console("cleanProcess(): called\n");
     ProcTable[pid%MAXPROC].pid = -1;
     ProcTable[pid%MAXPROC].priority = -1;
     ProcTable[pid%MAXPROC].start_func = NULL;
@@ -369,6 +368,31 @@ void cleanProcess(int pid)
     ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
     memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
+}
+
+/* ------------------------------------------------------------------------
+   Name - setKernelMode
+   Purpose - sets current mode to kernel Mode
+   Parameters -
+   Returns - nothing
+   Side Effects -
+   ----------------------------------------------------------------------- */
+void setKernelMode(){
+    if(debugflag3&& DEBUG3)
+        USLOSS_Console("setKernelMode(): called\n");
+    USLOSS_PsrSet( USLOSS_PsrGet() | USLOSS_PSR_CURRENT_MODE );
+}
+/* ------------------------------------------------------------------------
+   Name - setUserMode
+   Purpose - sets current mode to kernel Mode
+   Parameters -
+   Returns - nothing
+   Side Effects -
+   ----------------------------------------------------------------------- */
+void setUserMode(){
+    if(debugflag3&& DEBUG3)
+        USLOSS_Console("setKernelMode(): called\n");
+    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
 }
 /* ------------------------------------------------------------------------
    Name - check_kernel_mode
