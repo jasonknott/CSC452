@@ -21,6 +21,8 @@ void initializeSystemCallVec();
 void initializeSemTable();
 void nullsys3();
 void addtoChildList(procPtr , procPtr *);
+void addtoProcList(procPtr node, procPtr *list);
+void popProcList(procPtr*);
 void zapAndCleanAllChildren(procPtr *);
 void cleanProcess(int);
 static void setUserMode();
@@ -37,7 +39,7 @@ int getPIDReal();
 procStruct ProcTable[MAXPROC];
 
 semaphore SemTable[MAX_SEMS];
-int debugflag3 = 0;
+int debugflag3 = 1;
 
 int start2(char *arg)
 {
@@ -264,7 +266,7 @@ void wait_3(systemArgs *sysArg)
 void terminate(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("terminate(): Started\n");
-    terminateReal((int) sysArg->arg1);
+    terminateReal((long) sysArg->arg1);
 }
 
     /* ------------------------------------------------------------------------
@@ -306,11 +308,11 @@ void terminateReal(int status){
 void semCreate(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semCreate(): Started\n");
-    int value = sysArg->arg1;
+    int value = (long) sysArg->arg1;
 
 
     if (value < 0 ){
-        sysArg->arg4 = -1;
+        sysArg->arg4 = (void*)(long)-1;
         return;
     }
 
@@ -322,7 +324,7 @@ void semCreate(systemArgs *sysArg){
 
     if (i == MAX_SEMS){
         // The SemTable is full
-        sysArg->arg4 = -1;  
+        sysArg->arg4 = (void*)(long) -1;  
         return;     
     }
 
@@ -332,7 +334,7 @@ void semCreate(systemArgs *sysArg){
     SemTable[i].value = value;
     SemTable[i].id = i;
 
-    sysArg->arg1 = i;
+    sysArg->arg1 = (void*)(long)i;
 }
 
 /* ------------------------------------------------------------------------
@@ -347,16 +349,23 @@ void semCreate(systemArgs *sysArg){
 void semP(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semP(): Started\n");
-    int handler = sysArg->arg1;
+    int handler = (long)sysArg->arg1;
 
     if(handler < 0 || handler > MAX_SEMS){
-        sysArg->arg4 = -1;
+        sysArg->arg4 = (void*)(long)-1;
         return;
     }
 
 
     sysArg->arg4 = 0;
     int mBoxID = SemTable[handler].mBoxID;
+    if (SemTable[handler].value == 0){
+        // Add to blocked list
+        addtoProcList(&ProcTable[getpid()%MAXPROC], &SemTable[handler].blockedProcPtr);
+    } else{
+        SemTable[handler].value -= 1;
+    }
+
     MboxReceive(mBoxID, NULL, 0);
 
     return;
@@ -377,20 +386,93 @@ void semV(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semV(): Started\n");
 
-    int handler = sysArg->arg1;
+    int handler = (long)sysArg->arg1;
 
     if(handler < 0 || handler > MAX_SEMS){
-        sysArg->arg4 = -1;
+        sysArg->arg4 = (void*)(long)-1;
         return;
     }
 
 
     sysArg->arg4 = 0;
     int mBoxID = SemTable[handler].mBoxID;
+
+    if (SemTable[handler].blockedProcPtr != NULL){
+        // There is something blocked 
+        // Unblock it, and keep value the same
+        procPtr proc = SemTable[handler].blockedProcPtr;
+        popProcList(&SemTable[handler].blockedProcPtr);
+    } else {
+        // Else add value
+        SemTable[handler].value += 1;
+    }
+
+
     MboxSend(mBoxID, NULL, 0);
     return;
+}
 
 
+/* ------------------------------------------------------------------------
+   Name - semFree (Incomplete)
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+
+   Adding
+   ----------------------------------------------------------------------- */
+void semFree(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semFree(): Started\n");
+
+    int handler = (long)sysArg->arg1;
+
+    if(handler < 0 || handler > MAX_SEMS){
+        sysArg->arg4 = (void*)(long) -1;
+        return;
+    }
+
+    int mBoxID = SemTable[handler].mBoxID;
+    procPtr blocked = SemTable[handler].blockedProcPtr;
+
+    while(blocked != NULL){
+        USLOSS_Console("Proc name: %s\n",blocked->name);
+        blocked = blocked->nextProcPtr;
+    }
+
+    blocked = SemTable[handler].blockedProcPtr;
+
+
+
+
+    SemTable[handler].id = -1;
+    SemTable[handler].value = -1;
+    SemTable[handler].blockedProcPtr = NULL;
+    SemTable[handler].mBoxID = -1;
+
+    if(blocked != NULL){
+        // There are blocked processes
+        // KILL THEM ALL WITH FIRE!
+        zapAndCleanAllProc(&SemTable[handler].blockedProcPtr);
+
+        USLOSS_Console("After zapAndCleanAllProc\n");
+
+
+    procPtr blocked = SemTable[handler].blockedProcPtr;
+
+    while(blocked != NULL){
+        USLOSS_Console("Proc name: %s\n",blocked->name);
+        blocked = blocked->nextProcPtr;
+    }
+
+    blocked = SemTable[handler].blockedProcPtr;
+
+        sysArg->arg4 = (void*)(long) 1;
+        return;
+    }
+
+    sysArg->arg4 = (void*)(long) 0;
 }
 
     /* ------------------------------------------------------------------------
@@ -514,14 +596,20 @@ void initializeSystemCallVec(){
     systemCallVec[SYS_SEMCREATE]=(void *)semCreate;
     systemCallVec[SYS_SEMP]=(void *)semP;
     systemCallVec[SYS_SEMV]=(void *)semV;
-    //These functions still need to be created
-
-    //systemCallVec[SYS_SEMFREE]=
+    systemCallVec[SYS_SEMFREE]=(void *)semFree;
     systemCallVec[SYS_GETTIMEOFDAY]=(void *) getTimeOfDay;
     systemCallVec[SYS_CPUTIME]= (void *) getCPUTime;
     systemCallVec[SYS_GETPID]= (void *) getPID;
 }
 
+
+/* ------------------------------------------------------------------------
+   Name - initializeSemTable 
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void initializeSemTable(){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("Initializing ProcTable\n");
@@ -570,6 +658,45 @@ void addtoChildList(procPtr node, procPtr *list) {
     return;
 }
 
+
+/*-------------------------------------------------------------------------
+ *  Name - addtoProcList
+ *  Purpose - adds to queue that is first come first serve base
+ *  Parameters - the node that we are adding and the list that it is being added to.
+ *  Returns - nothing
+ *  Side Effects - should be fine
+ *  --------------------------------------------------------------------------- */
+void addtoProcList(procPtr node, procPtr *list) {
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("addtoProcList(): called\n");
+ 
+    if(*list == NULL) {
+        *list = node;
+        return;
+    }
+    procPtr curr = *list;
+    while(curr->nextProcPtr != NULL) {
+        curr = curr -> nextProcPtr;
+    }
+    curr->nextProcPtr = node;
+    node->nextProcPtr = NULL;
+    return;
+}
+
+/* ------------------------------------------------------------------------
+   Name - initializeSemTable 
+   Purpose - 
+   Parameters - 
+   Returns - 
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+void popProcList(procPtr *list) {
+  if(*list == NULL)
+      return;
+  procPtr temp = *list;
+  *list = temp->nextProcPtr;
+}
+
 /* ------------------------------------------------------------------------
    Name - zapAndCleanAllChildren
    Purpose - To clear out the table on terminate
@@ -593,6 +720,33 @@ void zapAndCleanAllChildren(procPtr *list)
     *list = NULL;
     return;
 }
+
+
+
+/* ------------------------------------------------------------------------
+   Name - zapAndCleanAllChildren
+   Purpose - To clear out the table on terminate
+   Parameters - list of children
+   Returns - nothing
+   Side Effects - Halts OS if system is not in kernel mode
+   ----------------------------------------------------------------------- */
+void zapAndCleanAllProc(procPtr *list)
+{
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("zapAndCleanAllChildren(): called\n");
+    if(*list == NULL)
+        return;
+    procPtr curr = *list;
+    while(curr != NULL){
+        int pid = curr->pid;
+        zap(pid);
+        curr = curr->nextProcPtr;
+        cleanProcess(pid);
+    }
+    *list = NULL;
+    return;
+}
+
 /* ------------------------------------------------------------------------
    Name - cleanProcess
    Purpose - To clear out the process from the table
@@ -611,6 +765,7 @@ void cleanProcess(int pid)
     ProcTable[pid%MAXPROC].nextProcPtr = NULL;
     ProcTable[pid%MAXPROC].childProcPtr = NULL;
     ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
+    ProcTable[pid%MAXPROC].privateMBoxID = -1;
     memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
 }
