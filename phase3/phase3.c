@@ -267,8 +267,10 @@ void wait_3(systemArgs *sysArg)
         sysArg->arg2 = (void*) ( (long) status);
         sysArg->arg4 = (void*) ( (long) -1);
         setUserMode();
-    }else
+        return;
+    }else {
         terminateReal(0);
+    }
 }
 
    /* ------------------------------------------------------------------------
@@ -575,6 +577,7 @@ void getTimeOfDay(systemArgs* sysArg){
     int time = getTimeOfDayReal();
     if(!isZapped()) {
         sysArg->arg1 = (void*) ((long) time);
+        setUserMode();
         return;
     }else
         terminateReal(0);
@@ -603,9 +606,11 @@ void getCPUTime(systemArgs* sysArg) {
     int time = getCPUTimeReal();
     if(!isZapped()) {
         sysArg->arg1 = (void*)((long) time);
+        setUserMode();
         return;
-    }else
+    }else {
         terminateReal(0);
+    }
 }
 /* ------------------------------------------------------------------------
    Name - getCPUTimeReal (Incomplete)
@@ -630,9 +635,11 @@ void getPID(systemArgs* sysArg) {
     int pid = getPIDReal();
     if(!isZapped()) {
         sysArg->arg1 = (void*)((long) pid);
+        setUserMode();
         return;
-    } else
+    } else {
         terminateReal(0);
+    }
 }
 /* ------------------------------------------------------------------------
    Name - getPIDReal (Incomplete)
@@ -811,9 +818,10 @@ void zapAndCleanAllChildren(procPtr list)
         return;
     procPtr curr = list;
     while(curr != NULL){
+        procPtr temp = curr->nextSiblingPtr;
         int pid = curr->pid;
         zap(pid);
-        curr = curr->nextSiblingPtr;
+        curr = temp;
         //cleanProcess(pid);
     }
     //*list = NULL;
