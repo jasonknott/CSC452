@@ -136,6 +136,8 @@ void spawn(systemArgs *sysArg){
     }
     // Switch to kernal mode
     int pid = spawnReal(name, func, arg, stack_size, priority);
+    if(isZapped())
+        terminateReal(0);
     setUserMode();
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg4 = (void *) ( (long) 0);
@@ -282,6 +284,7 @@ void terminate(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("terminate(): Started\n");
     terminateReal((long) sysArg->arg1);
+    setUserMode();
 }
 
     /* ------------------------------------------------------------------------
