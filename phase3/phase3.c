@@ -175,7 +175,6 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
         USLOSS_Console("spawnReal(): About to fork %s at priority %i\n", name, priority);
 
     int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
-    int childMboxID;
 
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): Finished fork of %s, pid: %i\n", name, pid);
@@ -188,24 +187,12 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
     addtoChildList(&ProcTable[pid%MAXPROC], &ProcTable[getpid()%MAXPROC].childProcPtr);
-    if (arg != NULL){
-        memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
-    }
-
-    if (ProcTable[pid%MAXPROC].privateMBoxID == -1){
-        // it does not exist
-        childMboxID = MboxCreate(0,1);
-    } else {
-        // It does exist 
-        childMboxID = ProcTable[pid%MAXPROC].privateMBoxID;
-    }
-    ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
-    // Letting it's child go into the world (cry)
-    if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnReal(): %s might block on mbox %i, might wait for child.\n", ProcTable[getpid()%MAXPROC].name, childMboxID);
-    MboxSend(childMboxID, NULL, 0);
-    if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", name, childMboxID);
+        // Letting it's child go into the world (cry)
+    //if(debugflag3 && DEBUG3)
+        //USLOSS_Console("spawnReal(): %s might block on mbox %i, might wait for child.\n", ProcTable[getpid()%MAXPROC].name, childMboxID);
+    MboxSend(ProcTable[pid%MAXPROC].privateMBoxID, NULL, 0);
+    //if(debugflag3 && DEBUG3)
+     //   USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", name, childMboxID);
 
     // I don't think this needs more stuff, the rest of the stuff gets done
     // when spawnLaunch is finally called
@@ -231,19 +218,10 @@ void spawnLaunch() {
     int procIndex = pid%MAXPROC;
     int childMboxID;
 
-    if (ProcTable[procIndex].privateMBoxID == -1){
-        // it does not exist
-        childMboxID = MboxCreate(0,1);
-    } else {
-        // It does exist
-        childMboxID = ProcTable[procIndex].privateMBoxID;
-    }
-    ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
-
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): %s might block on mbox %i, might wait for parent\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
     // It will block here until the parent is ready to let it's child go, it's an emotional time.
-    MboxReceive(childMboxID, NULL, 0);
+    MboxReceive(ProcTable[procIndex].privateMBoxID, NULL, 0);
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): %s got passed from mbox %i.\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
 
@@ -672,7 +650,7 @@ int getCPUTimeReal() {
    ----------------------------------------------------------------------- */
 void getPID(systemArgs* sysArg) {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("getCPUTime(): called\n");
+        USLOSS_Console("getPID(): called\n");
     int pid = getPIDReal();
     if(!isZapped()) {
         sysArg->arg1 = (void*)((long) pid);
@@ -713,7 +691,7 @@ void initializeProcTable(){
             .nextProcPtr = NULL,
             .childProcPtr = NULL,
             .nextSiblingPtr = NULL,
-            .privateMBoxID = -1,
+            .privateMBoxID = MboxCreate(0,0),
         };
         memset(ProcTable[i].name, 0, sizeof(char)*MAXNAME);
         memset(ProcTable[i].startArg, 0, sizeof(char)*MAXARG);
@@ -903,7 +881,7 @@ void zapAndCleanAllProc(procPtr *list)
 void removeFromParentList(int parent_pid)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("removeFromParentList(): called for parent pid: %i\n", parent_pid);
+        USLOSS_Console("\tremoveFromParentList(): called for parent pid: %i\n", parent_pid);
     if(getpid() == 4 || parent_pid == -1)
         //if it is start3 you do not want to remove it from the parent's list
         return;
@@ -922,7 +900,7 @@ void removeFromParentList(int parent_pid)
 void removeFromChildrenList(int pid, procPtr * list, int parent_pid)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("removeFromChildrenList(): called for pid: %i\n", pid);
+        USLOSS_Console("\tremoveFromChildrenList(): called for pid: %i\n", pid);
     if(*list == NULL) {
         if(debugflag3 && DEBUG3) {
             USLOSS_Console("Error! Children List is NULL!!!!!\n");
@@ -969,7 +947,7 @@ void cleanProcess(int pid)
     ProcTable[pid%MAXPROC].nextProcPtr = NULL;
     ProcTable[pid%MAXPROC].childProcPtr = NULL;
     ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
-    ProcTable[pid%MAXPROC].privateMBoxID = -1;
+//    ProcTable[pid%MAXPROC].privateMBoxID = -1;
     ProcTable[pid%MAXPROC].parentPid = -1;
     memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
