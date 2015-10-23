@@ -223,8 +223,6 @@ void spawnLaunch() {
     int result;
     int pid = getpid();
 
-
-
     if (ProcTable[pid%MAXPROC].pid == -1){
         // it does not exist
         if(debugflag3 && DEBUG3)
@@ -932,7 +930,7 @@ void zapAndCleanAllProc(procPtr *list)
 void removeFromParentList(int parent_pid)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("removeFromParentList(): called for parent pid: %i\n", parent_pid);
+        USLOSS_Console("\tremoveFromParentList(): called for parent pid: %i\n", parent_pid);
     if(getpid() == 4 || parent_pid == -1)
         //if it is start3 you do not want to remove it from the parent's list
         return;
@@ -951,7 +949,7 @@ void removeFromParentList(int parent_pid)
 void removeFromChildrenList(int pid, procPtr * list, int parent_pid)
 {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("removeFromChildrenList(): called for pid: %i\n", pid);
+        USLOSS_Console("\tremoveFromChildrenList(): called for pid: %i\n", pid);
     if(*list == NULL) {
         if(debugflag3 && DEBUG3) {
             USLOSS_Console("Error! Children List is NULL!!!!!\n");
