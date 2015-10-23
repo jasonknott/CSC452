@@ -175,7 +175,6 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
         USLOSS_Console("spawnReal(): About to fork %s at priority %i\n", name, priority);
 
     int pid = fork1(name, (void *)spawnLaunch, arg, stack_size, priority);
-    int childMboxID;
 
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): Finished fork of %s, pid: %i\n", name, pid);
@@ -223,7 +222,6 @@ void spawnLaunch() {
 
     int result;
     int pid = getpid();
-    int childMboxID;
 
 
 
@@ -361,20 +359,26 @@ void semCreate(systemArgs *sysArg){
    Side Effects - none.
    ----------------------------------------------------------------------- */
 int semCreateReal(int value){
+    
+    
     // Picking a slot in the table
     int i = 0;
     while(SemTable[i].id != -1 && i < MAX_SEMS){
         i++;
     }
 
+    if (i == MAX_SEMS){
+        return i;
+    }
+
+
     int priv_mBoxID = MboxCreate(value, 0);
     int mutex_mBoxID = MboxCreate(1, 0);
-    // Never really use this...
-    // int free_mBoxID = MboxCreate(0, 0);
 
+    MboxSend(mutex_mBoxID, NULL, 0);
+    
     SemTable[i].priv_mBoxID =   priv_mBoxID;
     SemTable[i].mutex_mBoxID =  mutex_mBoxID;
-    // SemTable[i].free_mBoxID =   free_mBoxID;
     SemTable[i].value =         value;
     SemTable[i].startingValue = value;
     SemTable[i].id =            i;
@@ -385,6 +389,8 @@ int semCreateReal(int value){
         MboxSend(priv_mBoxID, NULL, 0);
     }
     // USLOSS_Console("SemTable[i].id %i\n", i);
+
+    MboxReceive(SemTable[i].mutex_mBoxID, NULL, 0);
 
     return SemTable[i].id;
 }
@@ -425,13 +431,24 @@ void semPReal(int handler){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semPReal(): Started\n");
 
+    MboxSend(SemTable[handler].mutex_mBoxID, NULL, 0);
+
     if (SemTable[handler].value == 0){
         // Add to blocked list
         addtoProcList(&ProcTable[getpid()%MAXPROC], &SemTable[handler].blockedProcPtr);
         // block here on private mail
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semP(): About to block on mailBox %i\n", SemTable[handler].priv_mBoxID);
+
+
+        MboxReceive(SemTable[handler].mutex_mBoxID, NULL, 0);
+
         int result = MboxReceive(SemTable[handler].priv_mBoxID, NULL, 0);
+
+
+        MboxSend(SemTable[handler].mutex_mBoxID, NULL, 0);
+
+
         if(result < 0){
             USLOSS_Console("semp(): SOMETHING WENT VERY WRONG\n");
         } 
@@ -442,6 +459,7 @@ void semPReal(int handler){
             // This means the sem was freed
             if(debugflag3 && DEBUG3)
                 USLOSS_Console("semP(): mbox was freed, process Terminating\n");
+            MboxReceive(SemTable[handler].mutex_mBoxID, NULL, 0);
             terminateReal(1); //I'm not sure why it's a 1, but that's what the test wanted
         }
 
@@ -456,7 +474,12 @@ void semPReal(int handler){
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semP(): Subtracting... value == %i\n", SemTable[handler].value);
     }
+    
+
+    MboxReceive(SemTable[handler].mutex_mBoxID, NULL, 0);
     // ERROR CHECKING WITH ZAPS NEED TO GO HERE
+    
+
     return;
 }
 
@@ -491,6 +514,8 @@ void semVReal(int handler){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semVReal(): Started\n");
 
+    MboxSend(SemTable[handler].mutex_mBoxID, NULL, 0);
+
     /*If you try to send too many times to a mailbox it will block,
     we don't want that so I'm checking if it's more than that and 
     just adding and leaving if it is.*/
@@ -507,7 +532,13 @@ void semVReal(int handler){
         popProcList(&SemTable[handler].blockedProcPtr);
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semV(): Sending to mbox %i\n", SemTable[handler].priv_mBoxID);
+        
+        MboxReceive(SemTable[handler].mutex_mBoxID, NULL, 0);
+
+
         MboxSend(SemTable[handler].priv_mBoxID, NULL, 0);
+
+        MboxSend(SemTable[handler].mutex_mBoxID, NULL, 0);
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semV(): Running after sending to mBoxID %i\n", SemTable[handler].priv_mBoxID);
     } else {
@@ -516,6 +547,7 @@ void semVReal(int handler){
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semV(): Adding ... value == %i\n", SemTable[handler].value);
     }
+    MboxReceive(SemTable[handler].mutex_mBoxID, NULL, 0);
 
     return;
 }
@@ -532,6 +564,7 @@ void semFree(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semFree(): Started\n");
 
+    
     int handler = (long)sysArg->arg1;
 
     if(handler < 0 || handler > MAX_SEMS){
@@ -543,6 +576,7 @@ void semFree(systemArgs *sysArg){
     int rtnValue = semFreeReal(handler);
 
     sysArg->arg4 = (void*)(long) rtnValue;
+
     return;
 
 }
@@ -551,19 +585,14 @@ int semFreeReal(int handler){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semFreeReal(): Started\thandler = %i\n",handler);
 
+    int mutex = SemTable[handler].mutex_mBoxID;
+    // MboxSend(mutex, NULL, 0);
 
 
     int priv_mBoxID = SemTable[handler].priv_mBoxID;
     procPtr blocked = SemTable[handler].blockedProcPtr;
 
-    // Debug stuff
-    if(debugflag3 && DEBUG3){
-        while(blocked != NULL){
-            USLOSS_Console("Proc name: %s\n",blocked->name);
-            blocked = blocked->nextProcPtr;
-        }
-        blocked = SemTable[handler].blockedProcPtr;
-    }
+
     // clearing out SemTable
     SemTable[handler].id = -1;
     SemTable[handler].value = -1;
@@ -582,15 +611,20 @@ int semFreeReal(int handler){
             // USLOSS_Console("semFreeReal(): priority of %s %i\n", blocked->name, blocked->priority);
             procPtr next = blocked->nextProcPtr;
             popProcList(&blocked);
+
+            // MboxReceive(mutex, NULL, 0);
             int result = MboxSend(priv_mBoxID, NULL, 0);
+            // MboxSend(mutex, NULL, 0);
             blocked = next;
             if (result < 0){
                 USLOSS_Console("semFreeReal(): THERE HAS BEEN AN ERROR\n");
             }
         }
+        // MboxReceive(mutex, NULL, 0);
         return 1;
     }
     else{
+        // MboxReceive(mutex, NULL, 0);
         return 0;
     }
 
@@ -855,7 +889,8 @@ void zapAndCleanAllChildren(procPtr list)
     while(curr != NULL){
         procPtr temp = curr->nextSiblingPtr;
         int pid = curr->pid;
-        zap(pid);
+        if(pid >= 0)
+            zap(pid);
         curr = temp;
         //cleanProcess(pid);
     }
