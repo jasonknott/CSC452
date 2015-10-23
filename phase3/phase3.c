@@ -50,7 +50,7 @@ void initializeSemTable();
 procStruct ProcTable[MAXPROC];
 
 semaphore SemTable[MAX_SEMS];
-int debugflag3 = 0;
+int debugflag3 = 1;
 
 int start2(char *arg)
 {
