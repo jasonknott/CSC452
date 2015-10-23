@@ -344,6 +344,10 @@ void semCreate(systemArgs *sysArg){
         sysArg->arg4 = (void*)(long) 0;
         sysArg->arg1 = (void*)(long) id;
     }
+
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semCreate(): Created semaphore %i\n", sysArg->arg1);
+
     return;
 
 }
@@ -405,8 +409,11 @@ void semP(systemArgs *sysArg){
     }else{
         sysArg->arg4 = 0;
     }
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("semP(): handler = %i\n", handler);
 
     semPReal(handler);
+
 
     return;
 }
@@ -422,9 +429,20 @@ void semPReal(int handler){
         // block here on private mail
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semP(): About to block on mailBox %i\n", SemTable[handler].priv_mBoxID);
-        MboxReceive(SemTable[handler].priv_mBoxID, NULL, 0);
+        int result = MboxReceive(SemTable[handler].priv_mBoxID, NULL, 0);
+        if(result < 0){
+            USLOSS_Console("semp(): SOMETHING WENT VERY WRONG\n");
+        } 
         if(debugflag3 && DEBUG3)
-            USLOSS_Console("semP(): Just freed from mailBox %i\n", SemTable[handler].priv_mBoxID);
+            USLOSS_Console("semP(): %s just freed from mailBox %i\n",ProcTable[getpid()%MAXPROC].name, SemTable[handler].priv_mBoxID);
+
+        if (SemTable[handler].id == -1){
+            // This means the sem was freed
+            if(debugflag3 && DEBUG3)
+                USLOSS_Console("semP(): mbox was freed, process Terminating\n");
+            terminateReal(5); //The 5 is there, but it's saying terminated because semFree
+        }
+
     } else{
         SemTable[handler].value -= 1;
         if(debugflag3 && DEBUG3)
@@ -513,6 +531,7 @@ void semFree(systemArgs *sysArg){
         return;
     }
 
+
     int rtnValue = semFreeReal(handler);
 
     sysArg->arg4 = (void*)(long) rtnValue;
@@ -522,18 +541,12 @@ void semFree(systemArgs *sysArg){
 
 int semFreeReal(int handler){
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("semFree(): Started\n");
+        USLOSS_Console("semFreeReal(): Started\thandler = %i\n",handler);
 
-    // int mBoxID = SemTable[handler].mBoxID;
+
+
+    int priv_mBoxID = SemTable[handler].priv_mBoxID;
     procPtr blocked = SemTable[handler].blockedProcPtr;
-    // clearing out SemTable
-    SemTable[handler].id = -1;
-    SemTable[handler].value = -1;
-    SemTable[handler].startingValue = -1;
-    SemTable[handler].blockedProcPtr = NULL;
-    SemTable[handler].priv_mBoxID = -1;
-    SemTable[handler].mutex_mBoxID = -1;
-    SemTable[handler].free_mBoxID = -1;
 
     // Debug stuff
     if(debugflag3 && DEBUG3){
@@ -543,15 +556,29 @@ int semFreeReal(int handler){
         }
         blocked = SemTable[handler].blockedProcPtr;
     }
+    // clearing out SemTable
+    SemTable[handler].id = -1;
+    SemTable[handler].value = -1;
+    SemTable[handler].startingValue = -1;
+    SemTable[handler].blockedProcPtr = NULL;
+    SemTable[handler].priv_mBoxID = -1;
+    SemTable[handler].mutex_mBoxID = -1;
+    SemTable[handler].free_mBoxID = -1;
 
     if(blocked != NULL){
         while(blocked != NULL){
             // There are blocked processes
             // Let them all go by sending to mailbox
+            // USLOSS_Console("semFreeReal(): about to free %s on mbox %i\n", blocked->name, priv_mBoxID);
+            // USLOSS_Console("semFreeReal(): Current priority %i\n", ProcTable[getpid()].priority);
+            // USLOSS_Console("semFreeReal(): priority of %s %i\n", blocked->name, blocked->priority);
+            procPtr next = blocked->nextProcPtr;
             popProcList(&blocked);
-            // blocked = SemTable[handler].blockedProcPtr;
-
-            MboxSend(SemTable[handler].priv_mBoxID, NULL, 0);
+            int result = MboxSend(priv_mBoxID, NULL, 0);
+            blocked = next;
+            if (result < 0){
+                USLOSS_Console("semFreeReal(): THERE HAS BEEN AN ERROR\n");
+            }
         }
         return 1;
     }
