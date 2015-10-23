@@ -346,7 +346,7 @@ void semCreate(systemArgs *sysArg){
     }
 
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("semCreate(): Created semaphore %i\n", sysArg->arg1);
+        USLOSS_Console("semCreate(): Created semaphore %i with value %i using mbox %i\n", sysArg->arg1, value, SemTable[id].priv_mBoxID);
 
     return;
 
@@ -368,11 +368,12 @@ int semCreateReal(int value){
 
     int priv_mBoxID = MboxCreate(value, 0);
     int mutex_mBoxID = MboxCreate(1, 0);
-    int free_mBoxID = MboxCreate(0, 0);
+    // Never really use this...
+    // int free_mBoxID = MboxCreate(0, 0);
 
     SemTable[i].priv_mBoxID =   priv_mBoxID;
     SemTable[i].mutex_mBoxID =  mutex_mBoxID;
-    SemTable[i].free_mBoxID =   free_mBoxID;
+    // SemTable[i].free_mBoxID =   free_mBoxID;
     SemTable[i].value =         value;
     SemTable[i].startingValue = value;
     SemTable[i].id =            i;
@@ -440,11 +441,17 @@ void semPReal(int handler){
             // This means the sem was freed
             if(debugflag3 && DEBUG3)
                 USLOSS_Console("semP(): mbox was freed, process Terminating\n");
-            terminateReal(5); //The 5 is there, but it's saying terminated because semFree
+            terminateReal(1); //I'm not sure why it's a 1, but that's what the test wanted
         }
 
     } else{
         SemTable[handler].value -= 1;
+        if(debugflag3 && DEBUG3)
+                USLOSS_Console("semP(): about to MboxReceive on mailbox %i, should't block\n", SemTable[handler].priv_mBoxID);
+        int result = MboxReceive(SemTable[handler].priv_mBoxID, NULL, 0);
+        if(result < 0){
+            USLOSS_Console("semp(): SOMETHING WENT VERY WRONG\n");
+        } 
         if(debugflag3 && DEBUG3)
             USLOSS_Console("semP(): Subtracting... value == %i\n", SemTable[handler].value);
     }
