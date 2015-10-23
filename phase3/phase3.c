@@ -262,11 +262,13 @@ void wait_3(systemArgs *sysArg)
     int status;
     //need to check if process had children
     int pid = waitReal(&status);
-    sysArg->arg1 = (void*) ( (long) pid);
-    sysArg->arg2 = (void*) ( (long) status);
-    sysArg->arg4 = (void*) ( (long) -1);
-
-    setUserMode();
+    if(!isZapped()) {
+        sysArg->arg1 = (void*) ( (long) pid);
+        sysArg->arg2 = (void*) ( (long) status);
+        sysArg->arg4 = (void*) ( (long) -1);
+        setUserMode();
+    }else
+        terminateReal(0);
 }
 
    /* ------------------------------------------------------------------------
@@ -358,7 +360,6 @@ int semCreateReal(int value){
         i++;
     }
 
-<<<<<<< HEAD
     int priv_mBoxID = MboxCreate(value, 0);
     int mutex_mBoxID = MboxCreate(1, 0);
     int free_mBoxID = MboxCreate(0, 0);
@@ -374,12 +375,6 @@ int semCreateReal(int value){
     int j;
     for (j = 0; j < value; ++j){
         MboxSend(priv_mBoxID, NULL, 0);
-=======
-    if (i == MAX_SEMS){
-        // The SemTable is full
-        sysArg->arg4 = (void*)(long) -1;
-        return;
->>>>>>> c0ccfe76914413703f6bdb326a82e2b1fd0953d1
     }
     // USLOSS_Console("SemTable[i].id %i\n", i);
 
@@ -578,8 +573,11 @@ void getTimeOfDay(systemArgs* sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("getTimeOfDay(): called\n");
     int time = getTimeOfDayReal();
-    sysArg->arg1 = (void*) ((long) time);
-    return;
+    if(!isZapped()) {
+        sysArg->arg1 = (void*) ((long) time);
+        return;
+    }else
+        terminateReal(0);
 }
     /* ------------------------------------------------------------------------
    Name - getTimeOfDayReal (Incomplete)
@@ -603,8 +601,11 @@ void getCPUTime(systemArgs* sysArg) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("getCPUTime(): called\n");
     int time = getCPUTimeReal();
-    sysArg->arg1 = (void*)((long) time);
-    return;
+    if(!isZapped()) {
+        sysArg->arg1 = (void*)((long) time);
+        return;
+    }else
+        terminateReal(0);
 }
 /* ------------------------------------------------------------------------
    Name - getCPUTimeReal (Incomplete)
@@ -627,8 +628,11 @@ void getPID(systemArgs* sysArg) {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("getCPUTime(): called\n");
     int pid = getPIDReal();
-    sysArg->arg1 = (void*)((long) pid);
-    return;
+    if(!isZapped()) {
+        sysArg->arg1 = (void*)((long) pid);
+        return;
+    } else
+        terminateReal(0);
 }
 /* ------------------------------------------------------------------------
    Name - getPIDReal (Incomplete)
