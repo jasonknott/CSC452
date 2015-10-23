@@ -50,7 +50,7 @@ void initializeSemTable();
 procStruct ProcTable[MAXPROC];
 
 semaphore SemTable[MAX_SEMS];
-int debugflag3 = 1;
+int debugflag3 = 0;
 
 int start2(char *arg)
 {
@@ -194,7 +194,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     if (ProcTable[pid%MAXPROC].privateMBoxID == -1){
         // it does not exist
-        childMboxID = MboxCreate(0,0);
+        childMboxID = MboxCreate(0,1);
     } else {
         // It does exist 
         childMboxID = ProcTable[pid%MAXPROC].privateMBoxID;
@@ -203,7 +203,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     // Letting it's child go into the world (cry)
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): %s might block on mbox %i, might wait for child.\n", ProcTable[getpid()%MAXPROC].name, childMboxID);
-    MboxReceive(childMboxID, NULL, 0);
+    MboxSend(childMboxID, NULL, 0);
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", name, childMboxID);
 
@@ -233,7 +233,7 @@ void spawnLaunch() {
 
     if (ProcTable[procIndex].privateMBoxID == -1){
         // it does not exist
-        childMboxID = MboxCreate(0,0);
+        childMboxID = MboxCreate(0,1);
     } else {
         // It does exist
         childMboxID = ProcTable[procIndex].privateMBoxID;
@@ -243,7 +243,7 @@ void spawnLaunch() {
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): %s might block on mbox %i, might wait for parent\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
     // It will block here until the parent is ready to let it's child go, it's an emotional time.
-    MboxSend(childMboxID, NULL, 0);
+    MboxReceive(childMboxID, NULL, 0);
     if(debugflag3 && DEBUG3)
         USLOSS_Console("spawnLaunch(): %s got passed from mbox %i.\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
 
