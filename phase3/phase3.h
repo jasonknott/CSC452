@@ -25,5 +25,6 @@
  	procPtr         nextSiblingPtr;
  	int				privateMBoxID;
     int             parentPid;
+    int 			started;
  };
 
