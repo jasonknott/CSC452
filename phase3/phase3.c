@@ -584,7 +584,7 @@ int semFreeReal(int handler){
         USLOSS_Console("semFreeReal(): Started\thandler = %i\n",handler);
 
     int mutex = SemTable[handler].mutex_mBoxID;
-    // MboxSend(mutex, NULL, 0);
+    MboxSend(mutex, NULL, 0);
 
 
     int priv_mBoxID = SemTable[handler].priv_mBoxID;
@@ -610,19 +610,19 @@ int semFreeReal(int handler){
             procPtr next = blocked->nextProcPtr;
             popProcList(&blocked);
 
-            // MboxReceive(mutex, NULL, 0);
+            MboxReceive(mutex, NULL, 0);
             int result = MboxSend(priv_mBoxID, NULL, 0);
-            // MboxSend(mutex, NULL, 0);
+            MboxSend(mutex, NULL, 0);
             blocked = next;
             if (result < 0){
                 USLOSS_Console("semFreeReal(): THERE HAS BEEN AN ERROR\n");
             }
         }
-        // MboxReceive(mutex, NULL, 0);
+        MboxReceive(mutex, NULL, 0);
         return 1;
     }
     else{
-        // MboxReceive(mutex, NULL, 0);
+        MboxReceive(mutex, NULL, 0);
         return 0;
     }
 
