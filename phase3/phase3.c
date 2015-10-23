@@ -187,18 +187,25 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
 
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
     addtoChildList(&ProcTable[pid%MAXPROC], &ProcTable[getpid()%MAXPROC].childProcPtr);
+    if (arg != NULL){
+        memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
+    }
+
+    if (ProcTable[pid%MAXPROC].priority < ProcTable[getpid()%MAXPROC].priority){
+        // it does not exist
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("spawnReal(): %s block on mbox %i, waiting for child.\n", ProcTable[getpid()%MAXPROC].name, ProcTable[pid%MAXPROC].privateMBoxID);
+        
         // Letting it's child go into the world (cry)
-    //if(debugflag3 && DEBUG3)
-        //USLOSS_Console("spawnReal(): %s might block on mbox %i, might wait for child.\n", ProcTable[getpid()%MAXPROC].name, childMboxID);
-    MboxSend(ProcTable[pid%MAXPROC].privateMBoxID, NULL, 0);
-    //if(debugflag3 && DEBUG3)
-     //   USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", name, childMboxID);
+        MboxSend(ProcTable[pid%MAXPROC].privateMBoxID, NULL, 0);
+        
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", ProcTable[getpid()%MAXPROC].name, ProcTable[pid%MAXPROC].privateMBoxID);
+    }
+
 
     // I don't think this needs more stuff, the rest of the stuff gets done
     // when spawnLaunch is finally called
-
-    if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnReal(): About to leave spawn pid: %i\n", pid);
 
     return pid;
 }
@@ -211,24 +218,29 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
    ----------------------------------------------------------------------- */
 void spawnLaunch() {
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnLaunch(): Started\n");
+        USLOSS_Console("spawnLaunch(): Started %i\n", getpid());
 
     int result;
     int pid = getpid();
-    int procIndex = pid%MAXPROC;
     int childMboxID;
 
-    if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnLaunch(): %s might block on mbox %i, might wait for parent\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
-    // It will block here until the parent is ready to let it's child go, it's an emotional time.
-    MboxReceive(ProcTable[procIndex].privateMBoxID, NULL, 0);
-    if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnLaunch(): %s got passed from mbox %i.\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
+    if (ProcTable[pid%MAXPROC].pid == -1){
+        // it does not exist
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("spawnLaunch(): %i block on mbox %i, wait for parent\n", pid, ProcTable[pid%MAXPROC].privateMBoxID);
+        
+        // It will block here until the parent is ready to let it's child go, it's an emotional time.
+            MboxReceive(ProcTable[pid%MAXPROC].privateMBoxID, NULL, 0);
+        
+        if(debugflag3 && DEBUG3)
+            USLOSS_Console("spawnLaunch(): %s got passed from mbox %i.\n", ProcTable[pid%MAXPROC].name, ProcTable[pid%MAXPROC].privateMBoxID);
+
+    }
 
     // Switching to user mode.
     if(!isZapped()){
         setUserMode();
-        result = ProcTable[procIndex].start_func(ProcTable[procIndex].startArg);
+        result = ProcTable[pid%MAXPROC].start_func(ProcTable[pid%MAXPROC].startArg);
         Terminate(result); // This may be wrong
     }else {
         terminateReal(0);
@@ -242,8 +254,9 @@ void spawnLaunch() {
    Returns -returns the pid(arg1), status(arg2), and (-1 if success and bleh for failure) in arg4
    Side Effects - none.
    ----------------------------------------------------------------------- */
-void wait_3(systemArgs *sysArg)
-{
+void wait_3(systemArgs *sysArg){
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("wait_3(): Started\n");
     int status;
     //need to check if process had children
     int pid = waitReal(&status);
@@ -839,7 +852,8 @@ void zapAndCleanAllChildren(procPtr list)
     while(curr != NULL){
         procPtr temp = curr->nextSiblingPtr;
         int pid = curr->pid;
-        zap(pid);
+        if(pid >=0)
+            zap(pid);
         curr = temp;
         //cleanProcess(pid);
     }
@@ -947,7 +961,7 @@ void cleanProcess(int pid)
     ProcTable[pid%MAXPROC].nextProcPtr = NULL;
     ProcTable[pid%MAXPROC].childProcPtr = NULL;
     ProcTable[pid%MAXPROC].nextSiblingPtr = NULL;
-//    ProcTable[pid%MAXPROC].privateMBoxID = -1;
+    // ProcTable[pid%MAXPROC].privateMBoxID = -1;
     ProcTable[pid%MAXPROC].parentPid = -1;
     memset(ProcTable[pid%MAXPROC].name, 0, sizeof(char)*MAXNAME);
     memset(ProcTable[pid%MAXPROC].startArg, 0, sizeof(char)*MAXARG);
