@@ -187,7 +187,7 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     ProcTable[pid%MAXPROC].parentPid = getpid();
 
     memcpy(ProcTable[pid%MAXPROC].name, name, strlen(name));
-    addtoChildList(&ProcTable[pid&MAXPROC], &ProcTable[getpid()&MAXPROC].childProcPtr);
+    addtoChildList(&ProcTable[pid%MAXPROC], &ProcTable[getpid()%MAXPROC].childProcPtr);
     if (arg != NULL){
         memcpy(ProcTable[pid%MAXPROC].startArg, arg, strlen(arg));
     }
@@ -202,11 +202,16 @@ int spawnReal(char *name, int (*func)(char *), char *arg, unsigned int stack_siz
     ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
     // Letting it's child go into the world (cry)
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("spawnReal(): %i might block on mbox %i, might wait for child.\n", pid, childMboxID);
+        USLOSS_Console("spawnReal(): %s might block on mbox %i, might wait for child.\n", ProcTable[getpid()%MAXPROC].name, childMboxID);
     MboxReceive(childMboxID, NULL, 0);
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): %s got passed from mbox %i.\n", name, childMboxID);
 
     // I don't think this needs more stuff, the rest of the stuff gets done
     // when spawnLaunch is finally called
+
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnReal(): About to leave spawn pid: %i\n", pid);
 
     return pid;
 }
@@ -236,9 +241,11 @@ void spawnLaunch() {
     ProcTable[pid%MAXPROC].privateMBoxID = childMboxID;
 
     if(debugflag3 && DEBUG3)
-        USLOSS_Console("SpawnLaunch(): %i might block on mbox %i, might wait for parent\n", pid, ProcTable[procIndex].privateMBoxID);
+        USLOSS_Console("spawnLaunch(): %s might block on mbox %i, might wait for parent\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
     // It will block here until the parent is ready to let it's child go, it's an emotional time.
     MboxSend(childMboxID, NULL, 0);
+    if(debugflag3 && DEBUG3)
+        USLOSS_Console("spawnLaunch(): %s got passed from mbox %i.\n", ProcTable[pid%MAXPROC].name, ProcTable[procIndex].privateMBoxID);
 
     // Switching to user mode.
     if(!isZapped()){
