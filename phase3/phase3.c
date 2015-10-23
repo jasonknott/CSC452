@@ -342,6 +342,11 @@ void semCreate(systemArgs *sysArg){
         sysArg->arg1 = (void*)(long) id;
     }
 
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
+
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semCreate(): Created semaphore %i with value %i using mbox %i\n", sysArg->arg1, value, SemTable[id].priv_mBoxID);
 
@@ -419,6 +424,10 @@ void semP(systemArgs *sysArg){
         USLOSS_Console("semP(): handler = %i\n", handler);
 
     semPReal(handler);
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
 
 
     return;
@@ -505,6 +514,11 @@ void semV(systemArgs *sysArg){
     }
 
     semVReal(handler);
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
+
     return;
 }
 
@@ -574,7 +588,10 @@ void semFree(systemArgs *sysArg){
     int rtnValue = semFreeReal(handler);
 
     sysArg->arg4 = (void*)(long) rtnValue;
-
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
     return;
 
 }
