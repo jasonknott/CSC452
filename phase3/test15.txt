@@ -1,3 +1,0 @@
-Child1(): started
-start3(): Done.
-All processes completed.

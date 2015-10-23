@@ -1,3 +1,0 @@
-start3(): started
-start3(): elapsed time = 9
-All processes completed.
