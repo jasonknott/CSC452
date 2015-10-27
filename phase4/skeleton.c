@@ -54,12 +54,13 @@ start3(void)
         }
     }
     sempReal(running);
-    sempReal(running);
+    sempReal(running); //Why two sempReal
 
     /*
      * Create terminal device drivers.
      */
-
+        //Create global mailbox for each term device
+        // systemHandler will be using these mailboxes
 
     /*
      * Create first user-level process and wait for it to finish.
@@ -72,7 +73,7 @@ start3(void)
     pid = waitReal(&status);
 
     /*
-     * Zap the device drivers
+     * Zap the all device drivers
      */
     zap(clockPID);  // clock driver
 
