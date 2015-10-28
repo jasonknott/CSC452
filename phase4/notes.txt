@@ -1,0 +1,40 @@
+simply set system vec in start3
+
+create libuser.h will the original
+semCreate Real
+all drivers will fork1
+    especially ClockDrivers
+        semPReal wait until clockDriver starts up
+            In clockDriver you use semVReal
+                will setup the mutex mailbox
+
+driver header files for the structs we create
+account for some kind of success for system calls
+
+need a process driver table: leverage by All
+    keep track of information revelant to processes
+    a private mailbox
+    time variable
+    been Zapped (maybe?)
+    diskRequests
+    void * buffer
+
+Sleep
+    call syscall
+        into arg1
+        grab arg1
+
+    sleepReal
+        account for seconds to microsecs
+        updates driver table
+        do not loop
+            use mutex
+        inserts to:
+            sleepList()
+            receive
+        mboxReceive to block
+            ClockDriver will mboxSend to block
+
+termRead + termWrite
+    set to buffer to Maxline+1
+

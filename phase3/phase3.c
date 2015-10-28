@@ -136,6 +136,8 @@ void spawn(systemArgs *sysArg){
     }
     // Switch to kernal mode
     int pid = spawnReal(name, func, arg, stack_size, priority);
+    if(isZapped())
+        terminateReal(0);
     setUserMode();
     sysArg->arg1 = (void*) ( (long) pid);
     sysArg->arg4 = (void *) ( (long) 0);
@@ -282,6 +284,7 @@ void terminate(systemArgs *sysArg){
     if(debugflag3 && DEBUG3)
         USLOSS_Console("terminate(): Started\n");
     terminateReal((long) sysArg->arg1);
+    setUserMode();
 }
 
     /* ------------------------------------------------------------------------
@@ -341,6 +344,11 @@ void semCreate(systemArgs *sysArg){
         sysArg->arg4 = (void*)(long) 0;
         sysArg->arg1 = (void*)(long) id;
     }
+
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
 
     if(debugflag3 && DEBUG3)
         USLOSS_Console("semCreate(): Created semaphore %i with value %i using mbox %i\n", sysArg->arg1, value, SemTable[id].priv_mBoxID);
@@ -419,6 +427,10 @@ void semP(systemArgs *sysArg){
         USLOSS_Console("semP(): handler = %i\n", handler);
 
     semPReal(handler);
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
 
 
     return;
@@ -505,6 +517,11 @@ void semV(systemArgs *sysArg){
     }
 
     semVReal(handler);
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
+
     return;
 }
 
@@ -574,7 +591,10 @@ void semFree(systemArgs *sysArg){
     int rtnValue = semFreeReal(handler);
 
     sysArg->arg4 = (void*)(long) rtnValue;
-
+    if(isZapped())
+        terminateReal(0);
+    else
+        setUserMode();
     return;
 
 }
