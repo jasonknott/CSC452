@@ -12,11 +12,11 @@ PHASE3LIB = patrickphase3
 # PHASE2LIB = patrickphase2debug
 # PHASE3LIB = patrickphase3debug
 
-HDRS = libuser.h sems.h phase1.h phase2.h phase3.h phase4.h
+HDRS = libuser.h phase1.h phase2.h phase3.h phase4.h
 
 INCLUDE = ./usloss/include
 
-CFLAGS = -Wall -g -std=gnu99 -I${INCLUDE} -I.  
+CFLAGS = -Wall -g -std=gnu99 -I${INCLUDE} -I.
 
 UNAME := $(shell uname -s)
 
@@ -26,19 +26,20 @@ endif
 
 LDFLAGS += -L. -L./usloss/lib
 
-PHASE3 = /home/cs452/fall15/phase3
+PHASE4 = /home/cs452/fall15/phase4
 
-ifeq ($(PHASE3), $(wildcard $(PHASE3)))
-	LDFLAGS += -L$(PHASE3)
+ifeq ($(PHASE4), $(wildcard $(PHASE4)))
+	LDFLAGS += -L$(PHASE4)
 endif
 
 TESTDIR = testcases
 
-TESTS = test00 test01 test02 test03 test04 test05 test06 test07 test08 \
+TESTS = test00 test01 test02 test03
+#test04 test05 test06 test07 test08 \
         test09 test10 test11 test12 test13 test14 test15 test16 test17 \
         test18 test19 test20 test21 test22 test23 test24 test25
 
-LIBS = -lusloss -l$(PHASE1LIB) -l$(PHASE2LIB) -lphase3
+LIBS = -lusloss -l$(PHASE1LIB) -l$(PHASE2LIB) -lphase4
 
 $(TARGET):	$(COBJS)
 		$(AR) -r $@ $(COBJS) 
@@ -50,7 +51,7 @@ $(TESTS):	$(TARGET)
 clean:
 	rm -f $(COBJS) $(TARGET) test*.txt test??.o test?? core term*.out
 
-phase3.o:	sems.h
+phase4.o: libuser.h
 
 turnin: $(CSRCS) $(HDRS) $(TURNIN)
 	turnin $(ASSIGNMENT) $(CSRCS) $(HDRS) $(TURNIN)
