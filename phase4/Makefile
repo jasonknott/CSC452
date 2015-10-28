@@ -61,5 +61,5 @@ libuser.a:	libuser.c
 	ar -r libuser.a libuser.o
 
 submit: $(CSRCS) $(HDRS) Makefile
-	tar cvzf phase3.tgz $(CSRCS) $(HDRS) Makefile
+	tar cvzf phase4.tgz $(CSRCS) $(HDRS) Makefile
 
