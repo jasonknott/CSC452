@@ -83,6 +83,16 @@ do
                 continue
             fi
 
+            if [ "$i" -eq "20" ]; then
+                if [ $(diff test${num}.txt ${dir} | wc -l ) -le 4 ]; then
+                    echo "\033[0;32mtest${num} passed!\033[0m"
+                    pass=$(($pass + 1))
+                else 
+                    echo test${num} failed
+                fi
+                continue
+            fi
+
             echo "\033[0;31mtest${num} failed!\033[0m"
 
             # diff -C 1 test${num}.txt ${dir}

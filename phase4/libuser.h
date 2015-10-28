@@ -1,19 +1,12 @@
 /*
- * These are the definitions for phase 4 of the project (support level, part 2).
+ * This file contains the function definitions for the library interfaces
+ * to the USLOSS system calls.
  */
 
-#ifndef _PHASE4_H
-#define _PHASE4_H
 
-/*
- * Maximum line length
- */
-
-#define MAXLINE         80
-
-/*
- * Function prototypes for this phase.
- */
+ // I'm not sure you need this file, please delete if we don't.
+#ifndef _LIBUSER_H
+#define _LIBUSER_H
 
 extern  int  Sleep(int seconds);
 
@@ -27,10 +20,4 @@ extern  int  TermRead (char *buffer, int bufferSize, int unitID,
 extern  int  TermWrite(char *buffer, int bufferSize, int unitID,
                        int *numCharsRead);
 
-extern  int  start4(char *);
-
-#define ERR_INVALID             -1
-#define ERR_OK                  0
-
-
-#endif /* _PHASE4_H */
+#endif
