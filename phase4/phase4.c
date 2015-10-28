@@ -3,7 +3,7 @@
 #include <phase2.h>
 #include <stdlib.h> /* needed for atoi() */
 
-semaphore 	running;
+int 	running;
 
 static int	ClockDriver(char *);
 static int	DiskDriver(char *);
@@ -47,6 +47,7 @@ void start3(void)
     for (i = 0; i < USLOSS_DISK_UNITS; i++) {
         sprintf(buf, "%d", i);
         pid = fork1(name, DiskDriver, buf, USLOSS_MIN_STACK, 2);
+        // Maybe storing the pid's into an array so you can clean them up later
         if (pid < 0) {
             USLOSS_Console("start3(): Can't create term driver %d\n", i);
             USLOSS_Halt(1);
@@ -58,6 +59,7 @@ void start3(void)
     /*
      * Create terminal device drivers.
      */
+     // Remember to store these pid's as well so you can clean them up after
 
 
     /*
@@ -100,6 +102,7 @@ static int ClockDriver(char *arg)
 	 * whose time has come.
 	 */
     }
+    quit(0); //I think...
 }
 
 static int DiskDriver(char *arg)

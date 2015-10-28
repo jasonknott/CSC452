@@ -6,6 +6,10 @@
 #define _PHASE4_H
 
 /*
+ * semaphores is just an int
+ */
+typedef struct semaphore int;
+/*
  * Maximum line length
  */
 
