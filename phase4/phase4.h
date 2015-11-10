@@ -35,6 +35,16 @@ extern  int  start4(char *);
 
 #define ERR_INVALID             -1
 #define ERR_OK                  0
-
-
+void sleep(systemArgs *);
+void diskRead(systemArgs *);
+void diskWrite(systemArgs *);
+void diskSize(systemArgs *);
+void termRead(systemArgs *);
+void termWrite(systemArgs *);
+int sleepReal(int);
+int diskReadReal(int, int, int, int, void *);
+int diskWriteReal(int, int, int, int, void *);
+int diskSizeReal(int, int, int, int);
+int termReadReal(int, int, char *);
+int termWriteReal(int, int, char *);
 #endif /* _PHASE4_H */

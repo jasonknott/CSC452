@@ -113,14 +113,14 @@ static int DiskDriver(char *arg)
 
 
 //The following parses syscalls:
-void Sleep(systemArgs * args)
+void sleep(systemArgs * args)
 {
     int seconds = (long) args->arg1;
     int returnValue = sleepReal(seconds);
     args->arg4 = returnValue;
 }
 
-void DiskRead(systemArgs * args)
+void diskRead(systemArgs * args)
 {
     void * buff = args->arg1;
     int sectors = (long) args->arg2;
@@ -136,7 +136,7 @@ void DiskRead(systemArgs * args)
         args->arg1 = returnValue;
 }
 
-void DiskWrite(systemArgs * args)
+void diskWrite(systemArgs * args)
 {
     void * buff = args->arg1;
     int sectors = (long) args->arg2;
@@ -152,13 +152,13 @@ void DiskWrite(systemArgs * args)
         args->arg1 = returnValue;
 }
 
-void DiskSize(systemArgs * args)
+void diskSize(systemArgs * args)
 {
     int unit = (long) args->arg1;
     diskSizeReal(unit);
 }
 
-void TermRead(systemArgs * args)
+void termRead(systemArgs * args)
 {
    char * buff = args->arg1;
    int size = (long) args->arg2;
@@ -166,7 +166,7 @@ void TermRead(systemArgs * args)
    int returnValue = termReadReal(unit, size, buff);
 }
 
-void TermWrite(systemArgs * args)
+void termWrite(systemArgs * args)
 {
     char * buff = args->arg1;
     int size = (long) args->arg2;
