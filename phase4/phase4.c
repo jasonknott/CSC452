@@ -110,3 +110,98 @@ static int DiskDriver(char *arg)
     int unit = atoi( (char *) arg); 	// Unit is passed as arg.
     return 0;
 }
+
+
+//The following parses syscalls:
+void Sleep(systemArgs * args)
+{
+    int seconds = (long) args->arg1;
+    int returnValue = sleepReal(seconds);
+    args->arg4 = returnValue;
+}
+
+void DiskRead(systemArgs * args)
+{
+    void * buff = args->arg1;
+    int sectors = (long) args->arg2;
+    int track = (long) args->arg3;
+    int first = (long) args->arg4;
+    int unit = (long) args->arg5;
+    int returnValue = diskReadReal(unit, track, first, sectors, buff);
+    if(returnValue == -1)
+        args->arg4 = -1;
+    else
+        args->arg4 = 0;
+    if(returnValue != -1)
+        args->arg1 = returnValue;
+}
+
+void DiskWrite(systemArgs * args)
+{
+    void * buff = args->arg1;
+    int sectors = (long) args->arg2;
+    int track = (long) args->arg3;
+    int first = (long) args->arg4;
+    int unit = (long) args->arg5;
+    int returnValue = diskReadReal(unit, track, first, sectors, buff);
+    if(returnValue == -1)
+        args->arg4 = -1;
+    else
+        args->arg4 = 0;
+    if(returnValue != -1)
+        args->arg1 = returnValue;
+}
+
+void DiskSize(systemArgs * args)
+{
+    int unit = (long) args->arg1;
+    diskSizeReal(unit);
+}
+
+void TermRead(systemArgs * args)
+{
+   char * buff = args->arg1;
+   int size = (long) args->arg2;
+   int unit = (long) args->arg3;
+   int returnValue = termReadReal(unit, size, buff);
+}
+
+void TermWrite(systemArgs * args)
+{
+    char * buff = args->arg1;
+    int size = (long) args->arg2;
+    int unit = (long) args->arg3;
+    int returnValue = termWriteReal(unit, size, buff);
+}
+
+//the following are real calls to the Syscalls
+//I am pretty sure sleepReal returns -1 on error
+int sleepReal(int seconds)
+{
+    return -1;
+}
+
+int diskReadReal(int unit, int track, int first, int sectors, void * buffer)
+{
+    return -1;
+}
+
+int diskWriteReal(int unit, int track, int first, int sectors, void * buffer)
+{
+    return -1;
+}
+
+int diskSizeReal(int unit, int *sector, int *track, int *disk)
+{
+    return -1;
+}
+
+int termReadReal(int unit, int size, char * buffer)
+{
+    return -1;
+}
+
+int termWriteReal(int unit, int size, char *text)
+{
+    return -1;
+}

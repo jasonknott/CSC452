@@ -38,3 +38,14 @@ Sleep
 termRead + termWrite
     set to buffer to Maxline+1
 
+
+typedef struct driverProc * driverProcPtr;
+
+struct driverProc {
+        int wait time;
+        driver Proc Ptr next Ptr;
+        int index or pid;
+        int privMbox
+        int isZapped
+        //DiskDriver
+        int 
