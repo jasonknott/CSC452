@@ -1,17 +1,29 @@
 #include <usloss.h>
+#include <usyscall.h>
 #include <phase1.h>
 #include <phase2.h>
 #include <stdlib.h> /* needed for atoi() */
+#include <stdio.h>
+#include <phase3.h>
+#include <phase4.h>
 
 int 	running;
 
 static int	ClockDriver(char *);
 static int	DiskDriver(char *);
 
+/* the process table */
+procStruct ProcTable[MAXPROC];
+
+
+
+int debugflag4 = 0;
+
 void start3(void)
 {
     char	name[128];
     char    termbuf[10];
+    char    buf[5];
     int		i;
     int		clockPID;
     int		pid;
@@ -19,6 +31,23 @@ void start3(void)
     /*
      * Check kernel mode here.
      */
+    check_kernel_mode("start3");
+
+
+    /*
+     * Initialize Proc Table
+     */
+    initializeProcTable();
+
+    /*
+     * Add things to systemCallVec
+     */
+    systemCallVec[SYS_SLEEP] = (void *)sleep;
+    systemCallVec[SYS_DISKREAD] = (void *)diskRead;
+    systemCallVec[SYS_DISKWRITE] = (void *)diskWrite;
+    systemCallVec[SYS_DISKSIZE] = (void *)diskSize;
+    systemCallVec[SYS_TERMREAD] = (void *)termRead;
+    systemCallVec[SYS_TERMWRITE] = (void *)termWrite;
 
     /*
      * Create clock device driver 
@@ -28,8 +57,8 @@ void start3(void)
     running = semcreateReal(0);
     clockPID = fork1("Clock driver", ClockDriver, NULL, USLOSS_MIN_STACK, 2);
     if (clockPID < 0) {
-	USLOSS_Console("start3(): Can't create clock driver\n");
-	USLOSS_Halt(1);
+    	USLOSS_Console("start3(): Can't create clock driver\n");
+    	USLOSS_Halt(1);
     }
     /*
      * Wait for the clock driver to start. The idea is that ClockDriver
@@ -37,6 +66,9 @@ void start3(void)
      */
 
     sempReal(running);
+
+    // Adding clock proc to table
+    ProcTable[pid%MAXPROC].pid = clockPID;
 
     /*
      * Create the disk device drivers here.  You may need to increase
@@ -49,9 +81,13 @@ void start3(void)
         pid = fork1(name, DiskDriver, buf, USLOSS_MIN_STACK, 2);
         // Maybe storing the pid's into an array so you can clean them up later
         if (pid < 0) {
-            USLOSS_Console("start3(): Can't create term driver %d\n", i);
+            USLOSS_Console("start3(): Can't create disk driver %d\n", i);
             USLOSS_Halt(1);
         }
+        
+        // Adding disk Proc drivers to Proc table
+        ProcTable[pid%MAXPROC].pid = pid;
+
     }
     sempReal(running);
     sempReal(running);
@@ -60,6 +96,7 @@ void start3(void)
      * Create terminal device drivers.
      */
      // Remember to store these pid's as well so you can clean them up after
+     // Also remember to add these to proc table
 
 
     /*
@@ -76,10 +113,10 @@ void start3(void)
      * Zap the device drivers
      */
     zap(clockPID);  // clock driver
+    // Zap everything else
 
     // eventually, at the end:
     quit(0);
-    
 }
 
 static int ClockDriver(char *arg)
@@ -204,4 +241,64 @@ int termReadReal(int unit, int size, char * buffer)
 int termWriteReal(int unit, int size, char *text)
 {
     return -1;
+}
+
+/* ------------------------------------------------------------------------
+   Name - setUserMode
+   Purpose - sets current mode to kernel Mode
+   Parameters - nothing
+   Returns - nothing
+   Side Effects -none
+   ----------------------------------------------------------------------- */
+void setUserMode(){
+    if(debugflag4&& DEBUG4)
+        USLOSS_Console("setUserMode(): called\n");
+    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+}
+/* ------------------------------------------------------------------------
+   Name - check_kernel_mode
+   Purpose - To check if a user level mode is invoked trying to execute kernel mode function
+   Parameters - you can pass in the current process name to get a nice debug statement
+   Returns - nothing
+   Side Effects - Halts OS if system is not in kernel mode
+   ----------------------------------------------------------------------- */
+static void check_kernel_mode(char* name)
+{
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("%s(): called check_kernel_mode\n", name);
+    if( (USLOSS_PSR_CURRENT_MODE & USLOSS_PsrGet()) == 0 ) {
+        //not in kernel mode
+        USLOSS_Console("Kernel Error: Not in kernel mode, may not ");
+        USLOSS_Console("check_kernel_mode\n");
+        USLOSS_Halt(1);
+    }
+
+} /* check_kernel_mode */
+
+/* ------------------------------------------------------------------------
+   Name - initializeProcTable(maybe Incomplete?)
+   Purpose - Initializes the process table
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
+void initializeProcTable(){
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("Initializing ProcTable\n");
+    int i;
+    for(i =0; i<MAXPROC; i++){
+        ProcTable[i] = (procStruct){
+            .pid = -1,
+            // .priority = -1,
+            // .start_func = NULL,
+            // .stackSize = -1,
+            .nextSleepPtr = NULL,
+            // .childSleepPtr = NULL,
+            // .nextSiblingPtr = NULL,
+            .privateMBoxID = MboxCreate(0,0),
+            .WakeTime = -1,
+        };
+        // memset(ProcTable[i].name, 0, sizeof(char)*MAXNAME);
+        // memset(ProcTable[i].startArg, 0, sizeof(char)*MAXARG);
+    }
 }
