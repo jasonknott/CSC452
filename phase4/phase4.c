@@ -192,7 +192,10 @@ void diskWrite(systemArgs * args)
 void diskSize(systemArgs * args)
 {
     int unit = (long) args->arg1;
-    diskSizeReal(unit);
+    int sector = 0;
+    int track = 0;
+    int disk = 0;
+    diskSizeReal(unit, &sector, &track, &disk);
 }
 
 void termRead(systemArgs * args)

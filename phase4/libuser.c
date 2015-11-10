@@ -33,15 +33,14 @@ int DiskRead (void *diskBuffer, int unit, int track, int first, int sectors, int
     systemArgs sysArg;
     
     CHECKMODE;
-    sysArg.number = SYS_DISK_READ; //again, no idea...
+    sysArg.number = SYS_DISKREAD; //again, no idea...
     sysArg.arg1 = (void *) diskBuffer;
     sysArg.arg2 = unit;
     sysArg.arg3 = track; //might need to cast
     sysArg.arg4 = first; //might need to cast
     sysArg.arg5 = sectors; //might need to cast
-    sysArg.arg6 = status; //might need to cast
     USLOSS_Syscall(&sysArg);
-
+    sysArg.arg4 = status; //might need to cast
     return -1; //no idea to put here, look at specs
 }
 
@@ -49,15 +48,14 @@ int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int
     systemArgs sysArg;
     
     CHECKMODE;
-    sysArg.number = SYS_DISK_WRITE; //again, no idea...
+    sysArg.number = SYS_DISKWRITE; //again, no idea...
     sysArg.arg1 = (void *) diskBuffer;
     sysArg.arg2 = unit;
     sysArg.arg3 = track; //might need to cast
     sysArg.arg4 = first; //might need to cast
     sysArg.arg5 = sectors; //might need to cast
-    sysArg.arg6 = status; //might need to cast
     USLOSS_Syscall(&sysArg);
-
+    sysArg.arg4 = status; //might need to cast
     return -1; //no idea to put here, look at specs
 }
 
@@ -65,8 +63,8 @@ int DiskSize (int unit, int *sector, int *track, int *disk){
     systemArgs sysArg;
     
     CHECKMODE;
-    sysArg.number = SYS_DISK_SIZE; //again, no idea...
-    sysArg.arg1 = (void *) diskBuffer;
+    sysArg.number = SYS_DISKSIZE; //again, no idea...
+    //sysArg.arg1 = (void *) diskBuffer;
     sysArg.arg2 = unit;
     sysArg.arg3 = track; //might need to cast
     sysArg.arg4 = disk; //might need to cast
@@ -79,8 +77,8 @@ int TermRead (char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     
     CHECKMODE;
-    sysArg.number = SYS_TERM_READ; //again, no idea...
-    sysArg.arg1 = (void *) diskBuffer;
+    sysArg.number = SYS_TERMREAD; //again, no idea...
+    //sysArg.arg1 = (void *) diskBuffer;
     sysArg.arg2 = buffer;
     sysArg.arg3 = bufferSize; //might need to cast
     sysArg.arg4 = unitID; //might need to cast
@@ -93,8 +91,8 @@ int TermWrite(char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     
     CHECKMODE;
-    sysArg.number = SYS_TERM_WRITE; //again, no idea...
-    sysArg.arg1 = (void *) diskBuffer;
+    sysArg.number = SYS_TERMWRITE; //again, no idea...
+    //sysArg.arg1 = (void *) diskBuffer;
     sysArg.arg2 = buffer;
     sysArg.arg3 = bufferSize; //might need to cast
     sysArg.arg4 = unitID; //might need to cast
