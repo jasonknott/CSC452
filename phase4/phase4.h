@@ -28,7 +28,7 @@ struct procStruct {
         // procPtr         childSleepPtr;
         // procPtr         nextSiblingPtr;
         int             privateMBoxID;
-        long			WakeTime;
+        int				WakeTime;
 	    // int             parentPid;
     	// int             started;
 };
