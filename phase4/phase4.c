@@ -17,10 +17,9 @@ procStruct ProcTable[MAXPROC];
 
 
 
-int debugflag4 = 0;
+int debugflag4 = 1;
 
-void start3(void)
-{
+void start3(void){
     char	name[128];
     char    termbuf[10];
     char    buf[5];
@@ -28,6 +27,9 @@ void start3(void)
     int		clockPID;
     int		pid;
     int		status;
+
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("start3(): started\n");
     /*
      * Check kernel mode here.
      */
@@ -55,6 +57,7 @@ void start3(void)
      * be used instead -- your choice.
      */
     running = semcreateReal(0);
+
     clockPID = fork1("Clock driver", ClockDriver, NULL, USLOSS_MIN_STACK, 2);
     if (clockPID < 0) {
     	USLOSS_Console("start3(): Can't create clock driver\n");
@@ -76,6 +79,9 @@ void start3(void)
      * driver, and perhaps do something with the pid returned.
      */
 
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("start3(): about to fork diskSize\n");
+
     for (i = 0; i < USLOSS_DISK_UNITS; i++) {
         sprintf(buf, "%d", i);
         pid = fork1(name, DiskDriver, buf, USLOSS_MIN_STACK, 2);
@@ -89,8 +95,15 @@ void start3(void)
         ProcTable[pid%MAXPROC].pid = pid;
 
     }
+
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("start3(): Finished forking diskSize\n");
+
     sempReal(running);
     sempReal(running);
+
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("start3(): Pass 3rd sempReal\n");
 
     /*
      * Create terminal device drivers.
@@ -106,6 +119,7 @@ void start3(void)
      * I'm assuming kernel-mode versions of the system calls
      * with lower-case first letters.
      */
+
     pid = spawnReal("start4", start4, NULL, 4 * USLOSS_MIN_STACK, 3);
     pid = waitReal(&status);
 
@@ -119,8 +133,9 @@ void start3(void)
     quit(0);
 }
 
-static int ClockDriver(char *arg)
-{
+static int ClockDriver(char *arg){
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("ClockDriver(): started\n");
     int result;
     int status;
 
@@ -130,10 +145,18 @@ static int ClockDriver(char *arg)
 
     // Infinite loop until we are zap'd
     while(! isZapped()) {
-	result = waitdevice(USLOSS_CLOCK_DEV, 0, &status);
+
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("ClockDriver(): Running in loop\n");
+
+
+	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
 	if (result != 0) {
 	    return 0;
-	}
+	
+
+
+    }
 	/*
 	 * Compute the current time and wake up any processes
 	 * whose time has come.
@@ -142,19 +165,23 @@ static int ClockDriver(char *arg)
     quit(0); //I think...
 }
 
-static int DiskDriver(char *arg)
-{
+static int DiskDriver(char *arg){
     int unit = atoi( (char *) arg); 	// Unit is passed as arg.
+
+
+    semvReal(running);
+
     return 0;
 }
 
 
 //The following parses syscalls:
-void sleep(systemArgs * args)
-{
+void sleep(systemArgs * args){
     int seconds = (long) args->arg1;
     int returnValue = sleepReal(seconds);
     args->arg4 = returnValue;
+
+    setUserMode();
 }
 
 void diskRead(systemArgs * args)
@@ -216,8 +243,23 @@ void termWrite(systemArgs * args)
 
 //the following are real calls to the Syscalls
 //I am pretty sure sleepReal returns -1 on error
-int sleepReal(int seconds)
-{
+int sleepReal(int seconds){
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("sleepReal(): started %i\n", getpid());
+
+    updateProcTable(getpid());
+    USLOSS_Console(" ProcTable %i\n", ProcTable[getpid() % MAXPROC].privateMBoxID);
+
+
+    // enableinterupts    
+    USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
+   
+    int result = MboxReceive(ProcTable[getpid() % MAXPROC].privateMBoxID, 0, 0);
+
+    if( result != 0){
+        USLOSS_Console("There was an error with MboxReceive\n");
+    }
+
     return -1;
 }
 
@@ -287,7 +329,7 @@ static void check_kernel_mode(char* name)
    ----------------------------------------------------------------------- */
 void initializeProcTable(){
     if(debugflag4 && DEBUG4)
-        USLOSS_Console("Initializing ProcTable\n");
+        USLOSS_Console("initializeProcTable() called\n");
     int i;
     for(i =0; i<MAXPROC; i++){
         ProcTable[i] = (procStruct){
@@ -304,4 +346,8 @@ void initializeProcTable(){
         // memset(ProcTable[i].name, 0, sizeof(char)*MAXNAME);
         // memset(ProcTable[i].startArg, 0, sizeof(char)*MAXARG);
     }
+}
+
+void updateProcTable(int pid){
+    ProcTable[pid % MAXPROC].pid = pid;
 }
