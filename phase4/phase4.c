@@ -164,9 +164,13 @@ static int ClockDriver(char *arg){
     	 */
         procPtr proc = sleepList;
         int currentTime = USLOSS_Clock();
-        while(proc != NULL && proc->WakeTime <= currentTime){
+        while(proc != NULL) {
+            if(proc->WakeTime <= currentTime){
             // Send to free a process
             MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
+            sleepList = proc;
+            }
+            proc= proc->nextSleepPtr;
         }
     }
     procPtr proc = sleepList;
@@ -276,7 +280,7 @@ int sleepReal(int seconds){
         USLOSS_Console("sleepReal(): started %i\n", getpid());
 
     updateProcTable(getpid());
-    int wakeTime = USLOSS_Clock()+(seconds*1000000000);
+    long wakeTime = USLOSS_Clock()+(seconds*1000000);
     ProcTable[getpid() % MAXPROC].WakeTime = wakeTime;
     addToSleepList(getpid(), &sleepList, wakeTime);
 
@@ -382,7 +386,7 @@ void updateProcTable(int pid){
 }
 
 
-void addToSleepList(int pid, procPtr *list, int time){
+void addToSleepList(int pid, procPtr *list, long time){
     //1st Case: if the list is empty
     if(*list == NULL)
     {

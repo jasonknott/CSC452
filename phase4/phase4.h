@@ -28,7 +28,7 @@ struct procStruct {
         // procPtr         childSleepPtr;
         // procPtr         nextSiblingPtr;
         int             privateMBoxID;
-        unsigned long			WakeTime;
+        long			WakeTime;
 	    // int             parentPid;
     	// int             started;
 };
@@ -65,7 +65,7 @@ int termWriteReal(int, int, char *);
 void initializeProcTable();
 void setUserMode();
 void updateProcTable(int);
-void addToSleepList(int , procPtr *, int );
+void addToSleepList(int , procPtr *,long );
 static void check_kernel_mode(char*);
 
 
