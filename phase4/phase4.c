@@ -14,6 +14,7 @@ static int	DiskDriver(char *);
 
 /* the process table */
 procStruct ProcTable[MAXPROC];
+procPtr sleepList;
 
 
 
@@ -36,9 +37,10 @@ void start3(void){
     check_kernel_mode("start3");
 
     /*
-     * Initialize Proc Table
+     * Initialize stuff
      */
     initializeProcTable();
+    sleepList = NULL;
 
     /*
      * Add things to systemCallVec
@@ -91,6 +93,7 @@ void start3(void){
         }
         // Adding disk Proc drivers to Proc table
         ProcTable[pid%MAXPROC].pid = pid;
+        USLOSS_Console("adding %i to ProcTable\n", pid);
     }
 
     if(debugflag4 && DEBUG4)
@@ -117,14 +120,22 @@ void start3(void){
      * with lower-case first letters.
      */
 
+
     pid = spawnReal("start4", start4, NULL, 4 * USLOSS_MIN_STACK, 3);
     pid = waitReal(&status);
 
     /*
      * Zap the device drivers
      */
+    USLOSS_Console("Trying to zap %i\n", clockPID);
     zap(clockPID);  // clock driver
     // Zap everything else
+    for (int i = 0; i < MAXPROC; ++i){
+        if (ProcTable[i % MAXPROC].pid != -1){
+            USLOSS_Console("Trying to zap %i\n", i);
+            zap(i);
+        }
+    }
 
     // eventually, at the end:
     quit(0);
@@ -142,29 +153,52 @@ static int ClockDriver(char *arg){
 
     // Infinite loop until we are zap'd
     while(! isZapped()) {
-    if(debugflag4 && DEBUG4)
-        USLOSS_Console("ClockDriver(): Running in loop\n");
-	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
-	if (result != 0) {
-	    return 0;
-	
+    	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
+    	if (result != 0) {
+    	    return 0;
+        }
 
+    	/*
+    	 * Compute the current time and wake up any processes
+    	 * whose time has come.
+    	 */
+        procPtr proc = sleepList;
+        int currentTime = USLOSS_Clock();
+        while(proc != NULL && proc->WakeTime <= currentTime){
+            // Send to free a process
+            MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
+        }
+    }
+    procPtr proc = sleepList;
+    // LET ME PEOPLE GO!
+    while(proc != NULL){
+        // Send to free a process
+        MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
+    }
 
-    }
-	/*
-	 * Compute the current time and wake up any processes
-	 * whose time has come.
-	 */
-    }
     quit(0); //I think...
     return 0;
 }
 
 static int DiskDriver(char *arg){
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("DiskDriver(): started\n");
     int unit = atoi( (char *) arg); 	// Unit is passed as arg.
+    int result;
+    int status;
 
 
-    semvReal(running);
+    semvReal(running); //maybe?
+
+    while(! isZapped()) {
+        // if(debugflag4 && DEBUG4)
+        //     USLOSS_Console("DiskDriver(): Running in loop\n");
+        result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
+        if (result != 0) {
+            return 0;
+        }
+
+    }
 
     return 0;
 }
@@ -243,8 +277,9 @@ int sleepReal(int seconds){
         USLOSS_Console("sleepReal(): started %i\n", getpid());
 
     updateProcTable(getpid());
-    USLOSS_Console(" ProcTable %i\n", ProcTable[getpid() % MAXPROC].privateMBoxID);
 
+    addToSleepList(&ProcTable[getpid() % MAXPROC]);
+    ProcTable[getpid() % MAXPROC].WakeTime = USLOSS_Clock()+(seconds*1000000000); 
 
     // enableinterupts    
     USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
@@ -345,4 +380,9 @@ void initializeProcTable(){
 
 void updateProcTable(int pid){
     ProcTable[pid % MAXPROC].pid = pid;
+}
+
+
+void addToSleepList(){
+    return -1;
 }

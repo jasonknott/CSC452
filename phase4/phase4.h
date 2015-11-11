@@ -45,6 +45,7 @@ int termReadReal(int, int, char *);
 int termWriteReal(int, int, char *);
 void initializeProcTable();
 void setUserMode();
+void updateProcTable(int);
 static void check_kernel_mode(char*);
 typedef struct procStruct procStruct;
 typedef struct procStruct * procPtr;
@@ -59,7 +60,7 @@ struct procStruct {
         // procPtr         childSleepPtr;
         // procPtr         nextSiblingPtr;
         int             privateMBoxID;
-        int				WakeTime;
+        unsigned long			WakeTime;
 	    // int             parentPid;
     	// int             started;
  };
