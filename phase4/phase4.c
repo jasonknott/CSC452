@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <phase3.h>
 #include <phase4.h>
-
+#include <provided_prototypes.h>
 int 	running;
 
 static int	ClockDriver(char *);
@@ -32,7 +32,6 @@ void start3(void)
      * Check kernel mode here.
      */
     check_kernel_mode("start3");
-
 
     /*
      * Initialize Proc Table
@@ -68,7 +67,7 @@ void start3(void)
     sempReal(running);
 
     // Adding clock proc to table
-    ProcTable[pid%MAXPROC].pid = clockPID;
+    ProcTable[clockPID%MAXPROC].pid = clockPID;
 
     /*
      * Create the disk device drivers here.  You may need to increase
@@ -84,10 +83,8 @@ void start3(void)
             USLOSS_Console("start3(): Can't create disk driver %d\n", i);
             USLOSS_Halt(1);
         }
-        
         // Adding disk Proc drivers to Proc table
         ProcTable[pid%MAXPROC].pid = pid;
-
     }
     sempReal(running);
     sempReal(running);
@@ -130,7 +127,7 @@ static int ClockDriver(char *arg)
 
     // Infinite loop until we are zap'd
     while(! isZapped()) {
-	result = waitdevice(USLOSS_CLOCK_DEV, 0, &status);
+	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
 	if (result != 0) {
 	    return 0;
 	}
@@ -140,6 +137,7 @@ static int ClockDriver(char *arg)
 	 */
     }
     quit(0); //I think...
+    return 0;
 }
 
 static int DiskDriver(char *arg)
@@ -154,7 +152,7 @@ void sleep(systemArgs * args)
 {
     int seconds = (long) args->arg1;
     int returnValue = sleepReal(seconds);
-    args->arg4 = returnValue;
+    args->arg4 = (void *)((long)returnValue);
 }
 
 void diskRead(systemArgs * args)
@@ -166,11 +164,11 @@ void diskRead(systemArgs * args)
     int unit = (long) args->arg5;
     int returnValue = diskReadReal(unit, track, first, sectors, buff);
     if(returnValue == -1)
-        args->arg4 = -1;
+        args->arg4 = (void*)((long)-1);
     else
-        args->arg4 = 0;
+        args->arg4 = (void*)((long)0);
     if(returnValue != -1)
-        args->arg1 = returnValue;
+        args->arg1 = (void*)((long)returnValue);
 }
 
 void diskWrite(systemArgs * args)
@@ -182,11 +180,11 @@ void diskWrite(systemArgs * args)
     int unit = (long) args->arg5;
     int returnValue = diskReadReal(unit, track, first, sectors, buff);
     if(returnValue == -1)
-        args->arg4 = -1;
+        args->arg4 = (void*)((long)-1);
     else
-        args->arg4 = 0;
+        args->arg4 = (void*)((long)0);
     if(returnValue != -1)
-        args->arg1 = returnValue;
+        args->arg1 = (void*)((long)returnValue);
 }
 
 void diskSize(systemArgs * args)
