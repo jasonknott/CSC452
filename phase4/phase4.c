@@ -18,7 +18,7 @@ procPtr sleepList;
 
 
 
-int debugflag4 = 1;
+int debugflag4 = 0;
 
 void start3(void){
     char	name[128];
@@ -95,6 +95,7 @@ void start3(void){
         ProcTable[pid%MAXPROC].pid = pid;
         USLOSS_Console("adding %i to ProcTable\n", pid);
     }
+    int temp = pid;
 
     if(debugflag4 && DEBUG4)
         USLOSS_Console("start3(): Finished forking diskSize\n");
