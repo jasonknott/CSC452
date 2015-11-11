@@ -14,6 +14,25 @@
 
 
 #define DEBUG4 1
+
+typedef struct procStruct procStruct;
+typedef struct procStruct * procPtr;
+struct procStruct {
+        int pid;
+        // int priority;
+        // char name[MAXNAME];
+        // char            startArg[MAXARG];
+        // int (* start_func) (char *);
+        // unsigned int    stackSize;
+        procPtr         nextSleepPtr;
+        // procPtr         childSleepPtr;
+        // procPtr         nextSiblingPtr;
+        int             privateMBoxID;
+        unsigned long			WakeTime;
+	    // int             parentPid;
+    	// int             started;
+};
+
 /*
  * Function prototypes for this phase.
  */
@@ -46,24 +65,8 @@ int termWriteReal(int, int, char *);
 void initializeProcTable();
 void setUserMode();
 void updateProcTable(int);
+void addToSleepList(int , procPtr *, int );
 static void check_kernel_mode(char*);
-typedef struct procStruct procStruct;
-typedef struct procStruct * procPtr;
-struct procStruct {
-        int pid;
-        // int priority;
-        // char name[MAXNAME];
-        // char            startArg[MAXARG];
-        // int (* start_func) (char *);
-        // unsigned int    stackSize;
-        procPtr         nextSleepPtr;
-        // procPtr         childSleepPtr;
-        // procPtr         nextSiblingPtr;
-        int             privateMBoxID;
-        unsigned long			WakeTime;
-	    // int             parentPid;
-    	// int             started;
- };
 
 
 #endif /* _PHASE4_H */
