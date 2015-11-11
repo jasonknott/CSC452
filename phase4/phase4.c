@@ -18,7 +18,7 @@ procPtr sleepList;
 
 
 
-int debugflag4 = 1;
+int debugflag4 = 0;
 
 void start3(void){
     char	name[128];
@@ -93,7 +93,6 @@ void start3(void){
         }
         // Adding disk Proc drivers to Proc table
         ProcTable[pid%MAXPROC].pid = pid;
-        USLOSS_Console("adding %i to ProcTable\n", pid);
     }
 
     if(debugflag4 && DEBUG4)
@@ -127,12 +126,12 @@ void start3(void){
     /*
      * Zap the device drivers
      */
-    USLOSS_Console("Trying to zap %i\n", clockPID);
+
     zap(clockPID);  // clock driver
+    ProcTable[clockPID % MAXPROC].pid = -1;
     // Zap everything else
     for (int i = 0; i < MAXPROC; ++i){
         if (ProcTable[i % MAXPROC].pid != -1){
-            USLOSS_Console("Trying to zap %i\n", i);
             zap(i);
         }
     }
@@ -165,9 +164,6 @@ static int ClockDriver(char *arg){
         procPtr proc = sleepList;
         int currentTime = USLOSS_Clock();
         while(proc != NULL && proc->WakeTime <= currentTime){
-            USLOSS_Console("currentTime:\t%lu\n", currentTime);
-            USLOSS_Console("proc->WakeTime:\t%lu\n", proc->WakeTime);
-
             // Send to free a process
             MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
             proc = proc->nextSleepPtr;
@@ -280,13 +276,13 @@ int sleepReal(int seconds){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("sleepReal(): started %i\n", getpid());
 
+
+    if (seconds <= 0){
+        return -1;
+    }
+
     updateProcTable(getpid());
     int wakeTime = USLOSS_Clock()+(seconds*1000000);
-
-    USLOSS_Console("currentTime:\t%i\n", USLOSS_Clock());
-    USLOSS_Console("proc->WakeTime:\t%i\n", wakeTime);
-
-
     ProcTable[getpid() % MAXPROC].WakeTime = wakeTime;
     addToSleepList(getpid(), &sleepList, wakeTime);
 
@@ -299,7 +295,10 @@ int sleepReal(int seconds){
         USLOSS_Console("There was an error with MboxReceive\n");
     }
 
-    return -1;
+    // We don't care about it after this point
+    ProcTable[getpid() % MAXPROC].pid = -1;
+
+    return 0;
 }
 
 int diskReadReal(int unit, int track, int first, int sectors, void * buffer)
@@ -392,7 +391,7 @@ void updateProcTable(int pid){
 }
 
 
-void addToSleepList(int pid, procPtr *list, int time){
+void addToSleepList(int pid, procPtr *list, long time){
     //1st Case: if the list is empty
     if(*list == NULL)
     {
