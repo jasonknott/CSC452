@@ -147,9 +147,6 @@ static int ClockDriver(char *arg){
 	result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
 	if (result != 0) {
 	    return 0;
-	
-
-
     }
 	/*
 	 * Compute the current time and wake up any processes
@@ -175,7 +172,6 @@ void sleep(systemArgs * args){
     int seconds = (long) args->arg1;
     int returnValue = sleepReal(seconds);
     args->arg4 = (void *)((long)returnValue);
-
     setUserMode();
 }
 
@@ -335,7 +331,7 @@ void initializeProcTable(){
             .nextSleepPtr = NULL,
             // .childSleepPtr = NULL,
             // .nextSiblingPtr = NULL,
-            .privateMBoxID = MboxCreate(0,0),
+            .privateMBoxID = MboxCreate(1,0),
             .WakeTime = -1,
         };
         // memset(ProcTable[i].name, 0, sizeof(char)*MAXNAME);
@@ -345,4 +341,34 @@ void initializeProcTable(){
 
 void updateProcTable(int pid){
     ProcTable[pid % MAXPROC].pid = pid;
+}
+
+void addToSleepList(int pid, procPtr *list, int time){
+    //1st Case: if the list is empty
+    if(*list == NULL)
+    {
+        *list = &ProcTable[pid%MAXPROC];
+        return;
+    }
+    procPtr temp = *list;
+    //2nd Case: list has only one item and this time is smaller than the first one.
+    if(temp -> WakeTime > time)
+    {
+        ProcTable[pid%MAxPROC].nextSleepPtr = *list;
+        *list = &ProcTable[pid%MAXPROC];
+        return;
+    }
+    //3rd Case: put it somewhere on the list
+    procPtr prev = NULL;
+    procPtr curr = *list;
+    while(curr->WakeTime < time)
+    {
+        prev = curr;
+        curr = curr->nextSleepPtr;
+        //if curr is null then we have reached the end of the list
+        if(curr == NULL)
+            break;
+    }
+    prev->nextSleepPtr = &ProcTable[pid%MAXPROC];
+    ProcTable[pid%MAXPROC].nextSleepPtr = curr;
 }

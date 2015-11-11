@@ -45,6 +45,8 @@ int termReadReal(int, int, char *);
 int termWriteReal(int, int, char *);
 void initializeProcTable();
 void setUserMode();
+void updateProcTable(int);
+void addToSleepList(int , procPtr *, int );
 static void check_kernel_mode(char*);
 typedef struct procStruct procStruct;
 typedef struct procStruct * procPtr;
