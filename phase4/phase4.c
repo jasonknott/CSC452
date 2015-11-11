@@ -164,7 +164,7 @@ static int ClockDriver(char *arg){
     	 */
         procPtr proc = sleepList;
         int currentTime = USLOSS_Clock();
-        while(proc != NULL && proc->WakeTime <= currentTime){
+        while(proc != NULL && proc->WakeTime<= currentTime){
             // Send to free a process
             MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
             proc = proc->nextSleepPtr;
@@ -287,8 +287,6 @@ int sleepReal(int seconds){
     ProcTable[getpid() % MAXPROC].WakeTime = wakeTime;
     addToSleepList(getpid(), &sleepList, wakeTime);
 
-    // enableinterupts    
-    USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
    
     int result = MboxReceive(ProcTable[getpid() % MAXPROC].privateMBoxID, 0, 0);
 
