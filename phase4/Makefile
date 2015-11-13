@@ -2,7 +2,7 @@ TARGET = libphase4.a
 ASSIGNMENT = 452phase4
 CC = gcc
 AR = ar
-COBJS = phase4.o libuser.o p1.o
+COBJS = phase4.o driver.o p1.o
 CSRCS = ${COBJS:.o=.c}
 
 PHASE1LIB = patrickphase1
@@ -51,14 +51,14 @@ $(TESTS):	$(TARGET)
 clean:
 	rm -f $(COBJS) $(TARGET) test*.txt test??.o test?? core term*.out
 
-phase4.o: libuser.h
+phase4.o: driver.h
 
 turnin: $(CSRCS) $(HDRS) $(TURNIN)
 	turnin $(ASSIGNMENT) $(CSRCS) $(HDRS) $(TURNIN)
 
-libuser.a:	libuser.c
-	$(CC) $(CFLAGS) -c libuser.c
-	ar -r libuser.a libuser.o
+driver.a:	driver.c
+	$(CC) $(CFLAGS) -c driver.c
+	ar -r driver.a driver.o
 
 submit: $(CSRCS) $(HDRS) Makefile
 	tar cvzf phase4.tgz $(CSRCS) $(HDRS) Makefile

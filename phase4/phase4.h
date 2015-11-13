@@ -19,18 +19,11 @@ typedef struct procStruct procStruct;
 typedef struct procStruct * procPtr;
 struct procStruct {
         int pid;
-        // int priority;
-        // char name[MAXNAME];
-        // char            startArg[MAXARG];
-        // int (* start_func) (char *);
-        // unsigned int    stackSize;
         procPtr         nextSleepPtr;
-        // procPtr         childSleepPtr;
-        // procPtr         nextSiblingPtr;
         int             privateMBoxID;
+        int             mboxTermDriver;
+        int             mboxTermReal;
         int				WakeTime;
-	    // int             parentPid;
-    	// int             started;
 };
 
 /*
@@ -49,7 +42,6 @@ extern  int  TermWrite(char *buffer, int bufferSize, int unitID,
                        int *numCharsRead);
 
 extern  int  start4(char *);
-
 void sleep(systemArgs *);
 void diskRead(systemArgs *);
 void diskWrite(systemArgs *);
@@ -67,6 +59,6 @@ void setUserMode();
 void updateProcTable(int);
 void addToSleepList(int , procPtr *,long );
 static void check_kernel_mode(char*);
-
+static void enableInterrupts();
 
 #endif /* _PHASE4_H */
