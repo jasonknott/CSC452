@@ -1,11 +1,16 @@
+<<<<<<< HEAD:phase4/testphase4.ksh
 #!/bin/ksh
+=======
+#!/bin/sh
+dir=./testResults
+>>>>>>> 72558ae78636ca4175a6b9f0091a203d60f12306:phase4/testphase4.sh
 
 dir=./testResults
 #dir=/Users/patrick/Classes/452/project/phase4/testResults
 
 if [ "$#" -eq 0 ]
 then
-    echo "Usage: ksh testphase4.ksh <num>"
+    echo "Usage: sh testphase4.ksh <num>"
     echo "where <num> is 00, 01, 02, ... or 26"
     exit 1
 fi
@@ -52,8 +57,10 @@ then
         echo
         echo test${num} passed!
     else
+        clear
         echo
-        diff -C 1 test${num}.txt ${dir}
+        cat test${num}.txt
+        # diff -C 1 test${num}.txt ${dir}
     fi
 fi
 echo

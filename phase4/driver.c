@@ -33,10 +33,10 @@ int DiskRead (void *diskBuffer, int unit, int track, int first, int sectors, int
     CHECKMODE;
     sysArg.number = SYS_DISKREAD;
     sysArg.arg1 = diskBuffer;
-    sysArg.arg2 = (void *) ((long)unit);
+    sysArg.arg2 = (void *) ((long)sectors);
     sysArg.arg3 = (void *) ((long)track);
     sysArg.arg4 = (void *) ((long)first);
-    sysArg.arg5 = (void *) ((long)sectors);
+    sysArg.arg5 = (void *) ((long)unit);
     USLOSS_Syscall(&sysArg);
     *status = (long) sysArg.arg1;
     return (long) sysArg.arg4;
@@ -47,10 +47,10 @@ int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int
     CHECKMODE;
     sysArg.number = SYS_DISKWRITE;
     sysArg.arg1 = diskBuffer;
-    sysArg.arg2 = (void *) ((long)unit);
+    sysArg.arg2 = (void *) ((long)sectors);
     sysArg.arg3 = (void *) ((long)track);
     sysArg.arg4 = (void *) ((long)first);
-    sysArg.arg5 = (void *) ((long)sectors);
+    sysArg.arg5 = (void *) ((long)unit);
     USLOSS_Syscall(&sysArg);
     *status = (long) sysArg.arg1;
     return (long) sysArg.arg4;

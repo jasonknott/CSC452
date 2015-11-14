@@ -1,7 +1,11 @@
 #include <stdio.h>
-#include <libuser.h>
 #include <usloss.h>
-#include <phase4.h>
+#include <libuser.h>
+#include <assert.h>
+#include <phase1.h>
+#include <phase2.h>
+#include <usyscall.h>
+#include <strings.h>
 
 
 int start4(char *arg)
