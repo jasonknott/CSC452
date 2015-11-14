@@ -61,8 +61,8 @@ void start3(void){
     diskQ[1][DOWN] = NULL;
     diskQ[0][UP] = NULL;
     diskQ[0][DOWN] = NULL;
-    currArmDir[0] = NULL;
-    currArmDir[1] = NULL;
+    currArmDir[0] = UP;
+    currArmDir[1] = UP;
     diskRequestMutex[0] = MboxCreate(1, 0);
     diskRequestMutex[1] = MboxCreate(1, 0);
     // diskQMutex = MboxCreate(1, 0);
@@ -586,9 +586,9 @@ int diskDoWork(procPtr request, int unit){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("diskDoWork(): started %i\n", getpid()); 
     USLOSS_DeviceRequest req;
-    int numSectors, firstTrack, currentSector, currentTrack, operation;
+    int numSectors, firstTrack, currentSector, currentTrack;
 
-    void *diskBuf, *diskBufTemp;
+    void *diskBuf;
     int status;
     //grab everything from the request...
     //I might need to look these up in proctablr
@@ -597,7 +597,6 @@ int diskDoWork(procPtr request, int unit){
     currentTrack = firstTrack;
     currentSector = request->first;
     diskBuf = request->buffer;
-    diskBufTemp = request->buffer;
 
     while(numSectors > 0){
         if(debugflag4 && DEBUG4){
@@ -608,7 +607,7 @@ int diskDoWork(procPtr request, int unit){
         if (firstTrack != currArmTrack[unit]){
             // move the arm to the right track
             req.opr = USLOSS_DISK_SEEK;
-            req.reg1 = firstTrack;
+            req.reg1 = (void*)(long)firstTrack;
             currArmTrack[unit] = firstTrack;
             USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &req);
             waitDevice(USLOSS_DISK_DEV, unit, &status);
@@ -617,8 +616,8 @@ int diskDoWork(procPtr request, int unit){
             USLOSS_Console("diskDoWork(): Arm is at track %i for unit %i\n", currArmTrack[unit], unit);
 
         req.opr = request->opr;
-        req.reg1 = currentSector;
-        req.reg2 = diskBuf;
+        req.reg1 = (void*)(long)currentSector;
+        req.reg2 = (void*)(long)diskBuf;
         USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, &req);
         // USLOSS_Console("about to waitDevice\n");
         waitDevice(USLOSS_DISK_DEV, unit, &status); //Return the status of this
@@ -756,7 +755,7 @@ void initializeProcTable(){
             .track = -1,
             .first = -1,
             .sectors = -1,
-            .buffer = -1,
+            .buffer = (void*)(long)-1,
         };
     }
 }
@@ -828,7 +827,7 @@ void addToList(int pid, procPtr *list, int unit){
     ProcTable[pid%MAXPROC].nextProcPtr = curr;
 }
 
-printProcList(procPtr *list){
+void printProcList(procPtr *list){
     USLOSS_Console("PRINT THIS LIST!\n");
     procPtr curr = *list;
     while(curr != NULL){
@@ -897,14 +896,13 @@ void diskSize(systemArgs * args)
     int disk = 0;
     diskSizeReal(unit, &sector, &track, &disk);
 
-    args->arg1 = disk;
-    args->arg2 = sector;
-    args->arg3 = track;
+    args->arg1 = (void*)(long)disk;
+    args->arg2 = (void*)(long)sector;
+    args->arg3 = (void*)(long)track;
     // args->arg1 = disk;
 
 }
 
-static void enableInterrupts()
-{
+static void enableInterrupts(){
     USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
 }

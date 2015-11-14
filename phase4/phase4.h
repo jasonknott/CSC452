@@ -70,5 +70,9 @@ void updateProcTable(int);
 void addToSleepList(int , procPtr *,long );
 static void check_kernel_mode(char*);
 static void enableInterrupts();
+int diskDoWork(procPtr, int );
+int diskRequest(int, int, int, int, void*);
+void addToList(int, procPtr*, int);
+void printProcList(procPtr*);
 
 #endif /* _PHASE4_H */
