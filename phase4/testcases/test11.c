@@ -26,6 +26,7 @@ int start4(char *arg)
 
     for ( i = 0; i < 512 * 3; i++ ) {
         sectors[i] = ((i % 13) * 3456);
+        // USLOSS_Console("TESTING %i\n", ((i % 13) * 3456));
     }
     USLOSS_Console("start4(): Writing data to 3 disk sectors, then reading them back\n");
     USLOSS_Console("          Confirm that data read back matches data read in\n");
@@ -53,7 +54,7 @@ int start4(char *arg)
    assert(status == 0);
    result = DiskRead((char *) copy, 1, 4, 2, 3, &status);
    for ( i = 0; i < 512 * 3; i++ ) {
-       if ( copy[i]!=sectors[i] ) {
+       if ( copy[i] != sectors[i] ) {
            USLOSS_Console("start4(): Buffer read back fm disk 1 invalid at byte %d\n", i);
          failed = 1;
          break;

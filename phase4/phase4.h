@@ -19,18 +19,21 @@ typedef struct procStruct procStruct;
 typedef struct procStruct * procPtr;
 struct procStruct {
         int pid;
-        // int priority;
-        // char name[MAXNAME];
-        // char            startArg[MAXARG];
-        // int (* start_func) (char *);
-        // unsigned int    stackSize;
-        procPtr         nextSleepPtr;
-        // procPtr         childSleepPtr;
-        // procPtr         nextSiblingPtr;
-        int             privateMBoxID;
-        int				WakeTime;
-	    // int             parentPid;
-    	// int             started;
+        procPtr					nextSleepPtr;
+        procPtr					nextProcPtr;
+        int     		        privateMBoxID;
+        int						WakeTime;
+	
+
+		// Needed to make requests
+		int 		opr;
+		// void*		reg1;
+		// void*		reg2;
+
+		int 		track;
+		int 		first;
+		int 		sectors;
+		void*		buffer;
 };
 
 /*
