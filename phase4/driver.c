@@ -32,7 +32,7 @@ int DiskRead (void *diskBuffer, int unit, int track, int first, int sectors, int
     systemArgs sysArg;
     CHECKMODE;
     sysArg.number = SYS_DISKREAD;
-    sysArg.arg1 = (void *) ((long)diskBuffer);
+    sysArg.arg1 = diskBuffer;
     sysArg.arg2 = (void *) ((long)unit);
     sysArg.arg3 = (void *) ((long)track);
     sysArg.arg4 = (void *) ((long)first);
@@ -46,7 +46,7 @@ int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int
     systemArgs sysArg;
     CHECKMODE;
     sysArg.number = SYS_DISKWRITE;
-    sysArg.arg1 = (void *) ((long)diskBuffer);
+    sysArg.arg1 = diskBuffer;
     sysArg.arg2 = (void *) ((long)unit);
     sysArg.arg3 = (void *) ((long)track);
     sysArg.arg4 = (void *) ((long)first);
@@ -84,7 +84,7 @@ int TermWrite(char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     CHECKMODE;
     sysArg.number = SYS_TERMWRITE;
-    sysArg.arg1 = (void *) ((long)*buffer);
+    sysArg.arg1 = buffer;
     sysArg.arg2 = (void *) ((long)bufferSize);
     sysArg.arg3 = (void *) ((long)unitID);
     USLOSS_Syscall(&sysArg);

@@ -1,3 +1,4 @@
+#include<phase2.h>
 /*
  * These are the definitions for phase 4 of the project (support level, part 2).
  */
@@ -21,8 +22,6 @@ struct procStruct {
         int pid;
         procPtr         nextSleepPtr;
         int             privateMBoxID;
-        int             mboxTermDriver;
-        int             mboxTermReal;
         int				WakeTime;
 };
 

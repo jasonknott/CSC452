@@ -8,7 +8,6 @@
 #include <phase4.h>
 #include <provided_prototypes.h>
 #include <string.h>
-#include <driver.h>
 int 	running;
 
 static int	ClockDriver(char *);
@@ -19,9 +18,9 @@ static int  TermWriter(char *);
 /* the process table */
 procStruct ProcTable[MAXPROC];
 procPtr sleepList;
-int termPrivMailbox[USLOSS_TERM_UNITS][USLOSS_TERM_UNITS];
+int termPrivMailbox[USLOSS_TERM_UNITS][USLOSS_TERM_UNITS+1];
 int termProcIDTable[USLOSS_TERM_UNITS][3];
-
+int termWriteInt[USLOSS_TERM_UNITS];
 int debugflag4 = 0;
 
 void start3(void){
@@ -57,7 +56,7 @@ void start3(void){
     systemCallVec[SYS_TERMWRITE] = (void *)termWrite;
 
     /*
-     * Create clock device driver 
+     * Create clock device driver
      * I am assuming a semaphore here for coordination.  A mailbox can
      * be used instead -- your choice.
      */
@@ -117,21 +116,23 @@ void start3(void){
     int j;
     for(i=0; i<USLOSS_TERM_UNITS; i++)
     {
-        for(j=0; j<USLOSS_TERM_UNITS; j++)
-        {
-            termPrivMailbox[i][j] = MboxCreate(10, (sizeof(char) * MAXLINE));
-        }
+        termPrivMailbox[i][0] = MboxCreate(0, sizeof(int));
+        termPrivMailbox[i][1] = MboxCreate(10, sizeof(char) * MAXLINE +1);
+        termPrivMailbox[i][2] = MboxCreate(1, sizeof(int));
+        termPrivMailbox[i][3] = MboxCreate(10, sizeof(char) * MAXLINE +1);
+        termPrivMailbox[i][4] = MboxCreate(10, sizeof(int));
     }
     for(i = 0; i < USLOSS_TERM_UNITS; i++) {
         sprintf(buf, "%d", i);
+        pid = fork1(name, TermDriver, buf, USLOSS_MIN_STACK, 2);
+        termProcIDTable[i][0] = pid;
+        sempReal(running);
+        termWriteInt[i] = 0;
         pid = fork1(name, TermReader, buf, USLOSS_MIN_STACK, 2);
         termProcIDTable[i][1] = pid;
         sempReal(running);
-     //   pid = fork1(name, TermWriter, buf, USLOSS_MIN_STACK, 2);
-     //   termProcIDTable[i][2] = pid;
-     //   sempReal(running);
-        pid = fork1(name, TermDriver, buf, USLOSS_MIN_STACK, 2);
-        termProcIDTable[i][0] = pid;
+        pid = fork1(name, TermWriter, buf, USLOSS_MIN_STACK, 2);
+        termProcIDTable[i][2] = pid;
         sempReal(running);
     }
     /*
@@ -151,39 +152,37 @@ void start3(void){
 
     status = 0;
     zap(clockPID);  // clock driver
+    join(&status);
     ProcTable[clockPID % MAXPROC].pid = -1;
     //zapTermReaders
     for(i = 0; i < USLOSS_TERM_UNITS; i++)
     {
-        MboxCondSend(termPrivMailbox[i][0], "0", 0);
+        MboxSend(termPrivMailbox[i][0], NULL, 0);
         zap(termProcIDTable[i][1]);
+        join(&status);
     }
     //zapTermWriters
-    //for(i=0; i<USLOSS_TERM_UNITS; i++)
-    //{
-    //    zap(termProcIDTable[i][2]);
-    //}
-    //enable read Interrupts
-    for(i =0; i < USLOSS_TERM_UNITS; i++)
+    for(i=0; i<USLOSS_TERM_UNITS; i++)
     {
-        int ctrl = 0;
-        ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, i, (void *)((long) ctrl));
+        MboxSend(termPrivMailbox[i][3], NULL, 0);
+        zap(termProcIDTable[i][2]);
+        join(&status);
     }
     //fopen stuff here; not sure what to open tho
     //zapTermDriver
     char filename[100];
     for(i=0; i<USLOSS_TERM_UNITS; i++)
     {
+        int ctrl = 0;
+        ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+        USLOSS_DeviceOutput(USLOSS_TERM_DEV, i, (void *)((long) ctrl));
         sprintf(filename, "term%d.in", i);
         FILE *f = fopen(filename, "a+");
         fprintf(f, "last line\n");
         fflush(f);
-        //fclose(f);
-    //    USLOSS_Console("%d\n", termProcIDTable[i][0]);
         fclose(f);
         zap(termProcIDTable[i][0]);
-       // fclose(f);
+        join(&status);
     }
     // Zap everything else
     for (int i = 0; i < MAXPROC; ++i){
@@ -244,8 +243,6 @@ static int DiskDriver(char *arg){
     int status;
     semvReal(running); //maybe?
     while(! isZapped()) {
-        // if(debugflag4 && DEBUG4)
-        //     USLOSS_Console("DiskDriver(): Running in loop\n");
         result = waitDevice(USLOSS_CLOCK_DEV, 0, &status);
         if (result != 0) {
             return 0;
@@ -262,7 +259,6 @@ static int TermDriver(char * arg)
     int result;
     int status;
     semvReal(running);
-    enableInterrupts();
     while(!isZapped())
     {
         result = waitDevice(USLOSS_TERM_DEV, unit, &status);
@@ -272,9 +268,13 @@ static int TermDriver(char * arg)
         }
         result = USLOSS_TERM_STAT_RECV(status);
         if(result == USLOSS_DEV_BUSY) {
-            MboxSend(termPrivMailbox[unit][0], &status,sizeof(int));
+            MboxCondSend(termPrivMailbox[unit][0], &status,sizeof(int));
         }
-        //NEED TO DO TERMWRITER
+        result = USLOSS_TERM_STAT_XMIT(status);
+        if(result == USLOSS_DEV_READY)
+        {
+            MboxCondSend(termPrivMailbox[unit][2], &status, sizeof(int));
+        }
     }
     return 0;
 }
@@ -312,10 +312,42 @@ static int TermWriter(char * arg)
     if(debugflag4 && DEBUG4)
         USLOSS_Console("TermWriter(%d): started\n", unit);
     int result, status;
+    int ctrl = 0;
+    int index = 0;
+    char message[MAXLINE +1];
+    status = 0;
+    int pid = -1;
     semvReal(running);
     while(!isZapped())
     {
-
+        int numchar = MboxReceive(termPrivMailbox[unit][3], &message, MAXLINE+1);
+        if(isZapped())
+            break;
+        ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
+        if(termWriteInt[unit] == 1)
+            ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+        termWriteInt[unit] = 1;
+        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *)((long) ctrl));
+        index = 0;
+        while(numchar > index)
+        {
+            MboxReceive(termPrivMailbox[unit][2], &status, sizeof(int));
+            ctrl = 0;
+            ctrl = USLOSS_TERM_CTRL_CHAR(ctrl, message[index]);
+            ctrl = USLOSS_TERM_CTRL_XMIT_INT(ctrl);
+            ctrl = USLOSS_TERM_CTRL_XMIT_CHAR(ctrl);
+            if(termWriteInt[unit] == 1)
+                ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+            USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *)((long) ctrl));
+            index++;
+        }
+        ctrl = 0;
+        if(termWriteInt[unit] == 1)
+            ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
+        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void*)((long) ctrl));
+        termWriteInt[unit] = 0;
+        MboxReceive(termPrivMailbox[unit][4], &pid, sizeof(int));
+        MboxSend(ProcTable[pid%MAXPROC].privateMBoxID, &numchar, sizeof(int));
     }
     return 0;
 }
@@ -371,6 +403,8 @@ void diskSize(systemArgs * args)
 
 void termRead(systemArgs * args)
 {
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("termRead(): triggered\n");
    char * buff = (char *) args->arg1;
    int size = (long) args->arg2;
    int unit = (long) args->arg3;
@@ -382,10 +416,15 @@ void termRead(systemArgs * args)
 
 void termWrite(systemArgs * args)
 {
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("termWrite(): triggered\n");
     char * buff = args->arg1;
     int size = (long) args->arg2;
     int unit = (long) args->arg3;
     int returnValue = termWriteReal(unit, size, buff);
+    args->arg2 = (void *) ((long) returnValue);
+    args->arg4 = (void *) ((long) returnValue);
+    setUserMode();
 }
 
 //the following are real calls to the Syscalls
@@ -426,27 +465,47 @@ int diskSizeReal(int unit, int *sector, int *track, int *disk)
 
 int termReadReal(int unit, int size, char * buffer)
 {
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("termReadReal(): triggered\n");
     int i;
-    for(i =0; i < USLOSS_TERM_UNITS; i++)
-    {
-        int ctrl = 0;
+    int ctrl = 0;
+    if (termWriteInt[unit] == 0) {
         ctrl = USLOSS_TERM_CTRL_RECV_INT(ctrl);
-        USLOSS_DeviceOutput(USLOSS_TERM_DEV, i, (void *)((long) ctrl));
+        USLOSS_DeviceOutput(USLOSS_TERM_DEV, unit, (void *)((long) ctrl));
+        termWriteInt[unit] = 1;
     }
     char buf[MAXLINE+1];
     for(i = 0; i<MAXLINE+1; i++)
     {
         buf[i] = '\0';
     }
-    USLOSS_Console("%s", buffer);
     int num = MboxReceive(termPrivMailbox[unit][1], &buf, MAXLINE+1);
-    memcpy(buffer, buf,(sizeof(char)*num)+1 ); //do strncpy from mboxreceive
-    return num;
+    if(size < num)
+    {
+        memcpy(buffer, buf,(sizeof(char)*size)+1 ); //do strncpy from mboxreceive
+        return size;
+    }
+    else
+    {
+        memcpy(buffer, buf, (sizeof(char) * num) +1);
+        return num;
+    }
 }
 
 int termWriteReal(int unit, int size, char *text)
 {
-    return -1;
+    int pid = getpid();
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("termWriteReal(%d): triggered\n", pid);
+    ProcTable[pid%MAXPROC].pid = pid;
+    int numChar= 0;
+    MboxSend(termPrivMailbox[unit][3], text, size);
+    MboxSend(termPrivMailbox[unit][4], &pid, sizeof(int));
+    MboxReceive(ProcTable[pid%MAXPROC].privateMBoxID,&numChar , sizeof(int));
+    if(debugflag4 && DEBUG4)
+        USLOSS_Console("termWriteReal(%d): unblocked\n", pid);
+    ProcTable[pid%MAXPROC].pid = -1;
+    return size;
 }
 
 /* ------------------------------------------------------------------------
@@ -496,9 +555,7 @@ void initializeProcTable(){
         ProcTable[i] = (procStruct){
             .pid = -1,
             .nextSleepPtr = NULL,
-            .privateMBoxID = MboxCreate(1,0),
-            .mboxTermDriver = -1,
-            .mboxTermReal = -1,
+            .privateMBoxID = MboxCreate(0,sizeof(int)),
             .WakeTime = -1,
         };
     }
