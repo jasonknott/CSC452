@@ -1,10 +1,4 @@
-<<<<<<< HEAD:phase4/testphase4.ksh
-#!/bin/ksh
-=======
 #!/bin/sh
-dir=./testResults
->>>>>>> 72558ae78636ca4175a6b9f0091a203d60f12306:phase4/testphase4.sh
-
 dir=./testResults
 #dir=/Users/patrick/Classes/452/project/phase4/testResults
 

@@ -309,12 +309,11 @@ static int DiskDriver(char *arg){
 
 
         // Do stuff here
-        if (diskQ[unit][UP] == NULL &&  diskQ[unit][DOWN] == NULL){
+        if (diskQ[unit][UP] == NULL && diskQ[unit][DOWN] == NULL){
             if(debugflag4 && DEBUG4)
                 USLOSS_Console("DiskDriver(): There has been an error, empty diskList. Or shutting down driver\n");
             break; //I'm not sure about this...
         }
-    }
 
         if(diskQ[unit][currArmDir[unit]] == NULL){
             /*This means there is nothing waiting that direction
@@ -337,8 +336,11 @@ static int DiskDriver(char *arg){
         if(debugflag4 && DEBUG4)
             USLOSS_Console("DiskDriver(): Wake up process %i\n", proc->pid);
         MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, &status, sizeof(int));
-        return 0;
     }
+    ProcTable[getpid() % MAXPROC].pid = -1;
+    return 0;
+    }
+
 static int TermDriver(char * arg)
 {
     int unit = atoi((char *) arg);
