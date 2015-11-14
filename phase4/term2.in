@@ -9,3 +9,7 @@ two: eighth line
 two: ninth line
 two: tenth line
 two: eleventh line
+<<<<<<< HEAD
+=======
+last line
+>>>>>>> 63c030a7e14d352498b844b1f0c0e9f422ac089a

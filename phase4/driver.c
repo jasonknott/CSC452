@@ -7,7 +7,7 @@
 
 #include <phase1.h>
 #include <phase2.h>
-#include <libuser.h>
+#include <driver.h>
 #include <usyscall.h>
 #include <usloss.h>
 
@@ -72,7 +72,7 @@ int TermRead (char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     CHECKMODE;
     sysArg.number = SYS_TERMREAD;
-    sysArg.arg1 = (void *) ((long)*buffer);
+    sysArg.arg1 = buffer;
     sysArg.arg2 = (void *) ((long)bufferSize);
     sysArg.arg3 = (void *) ((long)unitID);
     USLOSS_Syscall(&sysArg);

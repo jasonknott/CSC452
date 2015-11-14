@@ -34,6 +34,9 @@ struct procStruct {
 		int 		first;
 		int 		sectors;
 		void*		buffer;
+        int             mboxTermDriver;
+        int             mboxTermReal;
+
 };
 
 /*
@@ -52,7 +55,6 @@ extern  int  TermWrite(char *buffer, int bufferSize, int unitID,
                        int *numCharsRead);
 
 extern  int  start4(char *);
-
 void sleep(systemArgs *);
 void diskRead(systemArgs *);
 void diskWrite(systemArgs *);
@@ -70,6 +72,6 @@ void setUserMode();
 void updateProcTable(int);
 void addToSleepList(int , procPtr *,long );
 static void check_kernel_mode(char*);
-
+static void enableInterrupts();
 
 #endif /* _PHASE4_H */
