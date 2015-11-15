@@ -272,6 +272,14 @@ static int ClockDriver(char *arg){
     quit(0); //I think...
     return 0;
 }
+/* ------------------------------------------------------------------------
+   Name - diskDriver
+   Purpose - The main function handling calls to read and write to the disk.  
+   diskRequest
+   Parameters - arg is the unit
+   Returns - always 0
+   Side Effects - It will block until it has a request to process.
+   ----------------------------------------------------------------------- */
 
 static int DiskDriver(char *arg){
     if(debugflag4 && DEBUG4)
@@ -485,7 +493,14 @@ int sleepReal(int seconds){
     ProcTable[getpid() % MAXPROC].pid = -1;
     return 0;
 }
-
+/* ------------------------------------------------------------------------
+   Name - diskReadReal
+   Purpose - handles error checking and adding the read operation before calling 
+   diskRequest
+   Parameters -same as DiskRead
+   Returns - status of waitDevice
+   Side Effects - It will block until it finishes reading the data
+   ----------------------------------------------------------------------- */
 int diskReadReal(int unit, int track, int first, int sectors, void * buffer){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("diskReadReal(): started pid %i unit %i\n", getpid(), unit);
@@ -508,6 +523,14 @@ int diskReadReal(int unit, int track, int first, int sectors, void * buffer){
     // return 0;
 }
 
+/* ------------------------------------------------------------------------
+   Name - diskWriteReal
+   Purpose - handles error checking and adding the write operation before calling 
+   diskRequest
+   Parameters -same as DiskWrite
+   Returns - status of waitDevice
+   Side Effects - It will block until it finishes writing the data
+   ----------------------------------------------------------------------- */
 int diskWriteReal(int unit, int track, int first, int sectors, void * buffer){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("diskWriteReal(): started pid %i unit %i\n", getpid(), unit);
@@ -531,7 +554,13 @@ int diskWriteReal(int unit, int track, int first, int sectors, void * buffer){
     // return 0;
 }
 
-
+/* ------------------------------------------------------------------------
+   Name - diskRequest
+   Purpose - A helper function to add the current request to the right queue. 
+   Parameters - Same as diskRead/WriteReal
+   Returns - nothing
+   Side Effects -it will block until the request is finished.
+   ----------------------------------------------------------------------- */
 int diskRequest(int unit, int track, int first, int sectors, void * buffer){
     int status;
     // A helper function because read and write are absically the same 
@@ -582,6 +611,15 @@ int diskRequest(int unit, int track, int first, int sectors, void * buffer){
     return status;
 }
 
+
+/* ------------------------------------------------------------------------
+   Name - diskDoWork
+   Purpose - a helper function that actually reads/writes to the disk. 
+   also moved the arm to the requested location.
+   Parameters - request is a procPtr that points to the request, and unit it the given unit
+   Returns - status of wait device
+   Side Effects -it my block when moving the arm and when writing/reading.
+   ----------------------------------------------------------------------- */
 int diskDoWork(procPtr request, int unit){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("diskDoWork(): started %i\n", getpid()); 
@@ -642,7 +680,14 @@ int diskDoWork(procPtr request, int unit){
     }
     return status;
 }
-
+/* ------------------------------------------------------------------------
+   Name - diskSizeReal
+   Purpose - gets info from the given disk unit
+   Parameters - unit, the given unit. Sector, track, and disk are all pointers to ints 
+   that will hold info on the sector size, track size, and diskSize
+   Returns - nothing
+   Side Effects -none
+   ----------------------------------------------------------------------- */
 int diskSizeReal(int unit, int *sector, int *track, int *disk){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("diskSizeReal(): started %i\n", getpid());
