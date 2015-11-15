@@ -18,7 +18,13 @@
 	}							\
 }
 
-
+/* ------------------------------------------------------------------------
+   Name - Sleep
+   Purpose - User function to sleep
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int Sleep(int seconds){
     systemArgs sysArg;
     CHECKMODE;
@@ -27,7 +33,13 @@ int Sleep(int seconds){
     USLOSS_Syscall(&sysArg);
     return (long) sysArg.arg4;
 }
-
+/* ------------------------------------------------------------------------
+   Name - DiskRead 
+   Purpose - User function to read teh disk
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int DiskRead (void *diskBuffer, int unit, int track, int first, int sectors, int *status){
     systemArgs sysArg;
     CHECKMODE;
@@ -41,7 +53,13 @@ int DiskRead (void *diskBuffer, int unit, int track, int first, int sectors, int
     *status = (long) sysArg.arg1;
     return (long) sysArg.arg4;
 }
-
+/* ------------------------------------------------------------------------
+   Name - DiskWrite
+   Purpose - User function to write to the disk
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int *status){
     systemArgs sysArg;
     CHECKMODE;
@@ -55,7 +73,13 @@ int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int
     *status = (long) sysArg.arg1;
     return (long) sysArg.arg4;
 }
-
+/* ------------------------------------------------------------------------
+   Name - DiskSize 
+   Purpose - get the DiskSize
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int DiskSize (int unit, int *sector, int *track, int *disk){
     systemArgs sysArg;
     CHECKMODE;
@@ -67,7 +91,13 @@ int DiskSize (int unit, int *sector, int *track, int *disk){
     *track = (long) sysArg.arg3;
     return (long) sysArg.arg4;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermRead
+   Purpose - Read from the Terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int TermRead (char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     CHECKMODE;
@@ -79,7 +109,13 @@ int TermRead (char *buffer, int bufferSize, int unitID, int *numCharsRead){
     *numCharsRead = (long) sysArg.arg2;
     return (long) sysArg.arg4;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermWrite
+   Purpose - Wriet back to the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int TermWrite(char *buffer, int bufferSize, int unitID, int *numCharsRead){
     systemArgs sysArg;
     CHECKMODE;

@@ -34,7 +34,13 @@ int termPrivMailbox[USLOSS_TERM_UNITS][USLOSS_TERM_UNITS+1];
 int termProcIDTable[USLOSS_TERM_UNITS][3];
 int termWriteInt[USLOSS_TERM_UNITS];
 int debugflag4 = 0;
-
+/* ------------------------------------------------------------------------
+   Name - start3
+   Purpose - Starts up drivers 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void start3(void){
     char    name[128];
     char    buf[5];
@@ -228,6 +234,14 @@ void start3(void){
     quit(0);
 }
 
+
+/* ------------------------------------------------------------------------
+   Name - ClockDriver
+   Purpose - Keep track of time to wake up user call to Sleep 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int ClockDriver(char *arg){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("ClockDriver(): started\n");
@@ -339,6 +353,13 @@ static int DiskDriver(char *arg){
     return 0;
     }
 
+/* ------------------------------------------------------------------------
+   Name - TermDriver
+   Purpose - Keeps track to when to Read and Write; 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermDriver(char * arg)
 {
     int unit = atoi((char *) arg);
@@ -366,7 +387,13 @@ static int TermDriver(char * arg)
     }
     return 0;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermReader
+   Purpose - read from the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermReader(char * arg)
 {
     int unit = atoi((char*) arg);
@@ -393,7 +420,13 @@ static int TermReader(char * arg)
     }
     return 0;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermWriter
+   Purpose - write back to the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermWriter(char * arg)
 {
     int unit = atoi((char *) arg);
@@ -439,6 +472,13 @@ static int TermWriter(char * arg)
     }
     return 0;
 }
+/* ------------------------------------------------------------------------
+   Name - termRead 
+   Purpose - syscall to read from teh termainal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void termRead(systemArgs * args)
 {
     if(debugflag4 && DEBUG4)
@@ -456,7 +496,13 @@ void termRead(systemArgs * args)
     }
    setUserMode();
 }
-
+/* ------------------------------------------------------------------------
+   Name - termWrite
+   Purpose - syscall to write back to the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void termWrite(systemArgs * args)
 {
     if(debugflag4 && DEBUG4)
@@ -695,6 +741,13 @@ int termReadReal(int unit, int size, char * buffer)
     }
 }
 
+/* ------------------------------------------------------------------------
+   Name - TermWriteReal
+   Purpose - write back to the terminal; termWriter does most of the work
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int termWriteReal(int unit, int size, char *text)
 {
     int pid = getpid();
