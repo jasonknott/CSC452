@@ -1,10 +1,11 @@
-#!/bin/sh
+#!/bin/ksh
+
 dir=./testResults
 #dir=/Users/patrick/Classes/452/project/phase4/testResults
 
 if [ "$#" -eq 0 ]
 then
-    echo "Usage: sh testphase4.ksh <num>"
+    echo "Usage: ksh testphase4.ksh <num>"
     echo "where <num> is 00, 01, 02, ... or 26"
     exit 1
 fi
@@ -51,10 +52,8 @@ then
         echo
         echo test${num} passed!
     else
-        clear
         echo
-        cat test${num}.txt
-        # diff -C 1 test${num}.txt ${dir}
+        diff -C 1 test${num}.txt ${dir}
     fi
 fi
 echo

@@ -23,8 +23,6 @@ int diskPid[USLOSS_DISK_UNITS];
 #define DOWN 1
 int     diskRequestMutex[2];
 #define ABS(a,b) a-b > 0 ? a-b : -(a-b)
-
-
 static int	DiskDriver(char *);
 static int  TermDriver(char *);
 static int  TermReader(char *);
@@ -36,7 +34,13 @@ int termPrivMailbox[USLOSS_TERM_UNITS][USLOSS_TERM_UNITS+1];
 int termProcIDTable[USLOSS_TERM_UNITS][3];
 int termWriteInt[USLOSS_TERM_UNITS];
 int debugflag4 = 0;
-
+/* ------------------------------------------------------------------------
+   Name - start3
+   Purpose - Starts up drivers 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void start3(void){
     char    name[128];
     char    buf[5];
@@ -140,9 +144,9 @@ void start3(void){
     {
         termPrivMailbox[i][0] = MboxCreate(0, sizeof(int));
         termPrivMailbox[i][1] = MboxCreate(10, sizeof(char) * MAXLINE +1);
-        termPrivMailbox[i][2] = MboxCreate(1, sizeof(int));
+        termPrivMailbox[i][2] = MboxCreate(0, sizeof(int));
         termPrivMailbox[i][3] = MboxCreate(10, sizeof(char) * MAXLINE +1);
-        termPrivMailbox[i][4] = MboxCreate(10, sizeof(int));
+        termPrivMailbox[i][4] = MboxCreate(1, sizeof(int));
     }
     for(i = 0; i < USLOSS_TERM_UNITS; i++) {
         sprintf(buf, "%d", i);
@@ -230,6 +234,14 @@ void start3(void){
     quit(0);
 }
 
+
+/* ------------------------------------------------------------------------
+   Name - ClockDriver
+   Purpose - Keep track of time to wake up user call to Sleep 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int ClockDriver(char *arg){
     if(debugflag4 && DEBUG4)
         USLOSS_Console("ClockDriver(): started\n");
@@ -257,7 +269,7 @@ static int ClockDriver(char *arg){
         int currentTime = USLOSS_Clock();
         while(proc != NULL && proc->WakeTime<= currentTime){
             // Send to free a process
-            MboxSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
+            MboxCondSend(ProcTable[proc->pid % MAXPROC].privateMBoxID, 0, 0);
             proc = proc->nextSleepPtr;
             sleepList = proc;
         }
@@ -349,6 +361,13 @@ static int DiskDriver(char *arg){
     return 0;
     }
 
+/* ------------------------------------------------------------------------
+   Name - TermDriver
+   Purpose - Keeps track to when to Read and Write; 
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermDriver(char * arg)
 {
     int unit = atoi((char *) arg);
@@ -376,7 +395,13 @@ static int TermDriver(char * arg)
     }
     return 0;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermReader
+   Purpose - read from the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermReader(char * arg)
 {
     int unit = atoi((char*) arg);
@@ -403,7 +428,13 @@ static int TermReader(char * arg)
     }
     return 0;
 }
-
+/* ------------------------------------------------------------------------
+   Name - TermWriter
+   Purpose - write back to the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 static int TermWriter(char * arg)
 {
     int unit = atoi((char *) arg);
@@ -449,6 +480,13 @@ static int TermWriter(char * arg)
     }
     return 0;
 }
+/* ------------------------------------------------------------------------
+   Name - termRead 
+   Purpose - syscall to read from teh termainal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void termRead(systemArgs * args)
 {
     if(debugflag4 && DEBUG4)
@@ -457,11 +495,22 @@ void termRead(systemArgs * args)
    int size = (long) args->arg2;
    int unit = (long) args->arg3;
    int returnValue = termReadReal(unit, size, buff);
-   args->arg2 = (void *) ((long) returnValue);
-   args->arg4 = (void *) ((long) 0);
+   if(returnValue > 0){
+        args->arg2 = (void*)((long)returnValue);
+        args->arg4 = (void*)((long)0);
+    } else {
+        args->arg2 = (void*)((long)0);
+        args->arg4 = (void*)((long)returnValue);
+    }
    setUserMode();
 }
-
+/* ------------------------------------------------------------------------
+   Name - termWrite
+   Purpose - syscall to write back to the terminal
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 void termWrite(systemArgs * args)
 {
     if(debugflag4 && DEBUG4)
@@ -470,8 +519,13 @@ void termWrite(systemArgs * args)
     int size = (long) args->arg2;
     int unit = (long) args->arg3;
     int returnValue = termWriteReal(unit, size, buff);
-    args->arg2 = (void *) ((long) returnValue);
-    args->arg4 = (void *) ((long) returnValue);
+    if(returnValue > 0){
+        args->arg2 = (void*)((long)returnValue);
+        args->arg4 = (void*)((long)0);
+    } else {
+        args->arg2 = (void*)((long)0);
+        args->arg4 = (void*)((long)returnValue);
+    }
     setUserMode();
 }
 //the following are real calls to the Syscalls
@@ -703,6 +757,10 @@ int termReadReal(int unit, int size, char * buffer)
 {
     if(debugflag4 && DEBUG4)
         USLOSS_Console("termReadReal(): triggered\n");
+    if(size < 0 || size > MAXLINE || unit < 0 || unit > USLOSS_TERM_UNITS)
+    {
+        return -1;
+    }
     int i;
     int ctrl = 0;
     if (termWriteInt[unit] == 0) {
@@ -728,15 +786,26 @@ int termReadReal(int unit, int size, char * buffer)
     }
 }
 
+/* ------------------------------------------------------------------------
+   Name - TermWriteReal
+   Purpose - write back to the terminal; termWriter does most of the work
+   Parameters -
+   Returns -
+   Side Effects - none.
+   ----------------------------------------------------------------------- */
 int termWriteReal(int unit, int size, char *text)
 {
     int pid = getpid();
     if(debugflag4 && DEBUG4)
         USLOSS_Console("termWriteReal(%d): triggered\n", pid);
+    if(unit < 0 || unit > USLOSS_TERM_UNITS || size < 0 || size > MAXLINE +1)
+    {
+        return -1;
+    }
     ProcTable[pid%MAXPROC].pid = pid;
     int numChar= 0;
-    MboxSend(termPrivMailbox[unit][3], text, size);
     MboxSend(termPrivMailbox[unit][4], &pid, sizeof(int));
+    MboxSend(termPrivMailbox[unit][3], text, size);
     MboxReceive(ProcTable[pid%MAXPROC].privateMBoxID,&numChar , sizeof(int));
     if(debugflag4 && DEBUG4)
         USLOSS_Console("termWriteReal(%d): unblocked\n", pid);
@@ -792,7 +861,6 @@ void initializeProcTable(){
             .nextSleepPtr = NULL,
             .privateMBoxID = MboxCreate(0,sizeof(int)),
             .nextProcPtr = NULL,
-            // .nextSiblingPtr = NULL,
             .mboxTermDriver = -1,
             .mboxTermReal = -1,
             .WakeTime = -1,
@@ -883,12 +951,6 @@ void printProcList(procPtr *list){
 
 }
 
-
-
-
-
-
-
 //The following parses syscalls:
 void sleep(systemArgs * args){
     int seconds = (long) args->arg1;
@@ -946,8 +1008,4 @@ void diskSize(systemArgs * args)
     args->arg3 = (void*)(long)track;
     // args->arg1 = disk;
 
-}
-
-static void enableInterrupts(){
-    USLOSS_PsrSet(USLOSS_PsrGet() | USLOSS_PSR_CURRENT_INT);
 }
