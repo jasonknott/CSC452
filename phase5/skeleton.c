@@ -35,8 +35,8 @@ VmStats  vmStats;
 
 static void FaultHandler(int type, int offset);
 
-static void vm_init(sysargs *sysargsPtr);
-static void vm_cleanup(sysargs *sysargsPtr);
+static void vmInit(sysargs *sysargsPtr);
+static void vmDestroy(sysargs *sysargsPtr);
 /*
  *----------------------------------------------------------------------
  *
@@ -68,8 +68,8 @@ start4(char *arg)
     systemCallVec[SYS_MBOXCONDRECEIVE] = mboxCondreceive;
 
     /* user-process access to VM functions */
-    sys_vec[SYS_VMINIT]    = vm_init;
-    sys_vec[SYS_VMCLEANUP] = vm_cleanup;
+    systemCallVec[SYS_VMINIT]    = vmInit;
+    systemCallVec[SYS_VMDESTROY] = vmDestroy;
 
     result = Spawn("Start5", start5, NULL, 8*USLOSS_MIN_STACK, 2, &pid);
     if (result != 0) {
@@ -105,15 +105,15 @@ static void
 vmInit(sysargs *sysargsPtr)
 {
     CheckMode();
-} /* vm_init */
+} /* vmInit */
 
 
 /*
  *----------------------------------------------------------------------
  *
- * vm_cleanup --
+ * vmDestroy --
  *
- * Stub for the VmCleanup system call.
+ * Stub for the VmDestroy system call.
  *
  * Results:
  *      None.
@@ -125,18 +125,18 @@ vmInit(sysargs *sysargsPtr)
  */
 
 static void
-vm_cleanup(sysargs *sysargsPtr)
+vmDestroy(sysargs *sysargsPtr)
 {
    CheckMode();
-} /* vm_cleanup */
+} /* vmDestroy */
 
 
 /*
  *----------------------------------------------------------------------
  *
- * vm_init_real --
+ * vmInitReal --
  *
- * Called by vm_init.
+ * Called by vmInit.
  * Initializes the VM system by configuring the MMU and setting
  * up the page tables.
  *
@@ -149,18 +149,18 @@ vm_cleanup(sysargs *sysargsPtr)
  *----------------------------------------------------------------------
  */
 void *
-vm_init_real(int mappings, int pages, int frames, int pagers)
+vmInitReal(int mappings, int pages, int frames, int pagers)
 {
    int status;
    int dummy;
 
    CheckMode();
-   status = MMU_Init(mappings, pages, frames);
-   if (status != MMU_OK) {
-      USLOSS_Console("vm_init: couldn't initialize MMU, status %d\n", status);
+   status = USLOSS_MmuInit(mappings, pages, frames);
+   if (status != USLOSS_MMU_OK) {
+      USLOSS_Console("vmInitReal: couldn't init MMU, status %d\n", status);
       abort();
    }
-   int_vec[MMU_INT] = FaultHandler;
+   int_vec[USLOSS_MMU_INT] = FaultHandler;
 
    /*
     * Initialize page tables.
@@ -184,8 +184,8 @@ vm_init_real(int mappings, int pages, int frames, int pagers)
     * Initialize other vmStats fields.
     */
 
-   return MMU_Region(&dummy);
-} /* vm_init_real */
+   return USLOSS_MmuRegion(&dummy);
+} /* vmInitReal */
 
 
 /*
@@ -224,9 +224,9 @@ PrintStats(void)
 /*
  *----------------------------------------------------------------------
  *
- * vm_cleanup_real --
+ * vmDestroyReal --
  *
- * Called by vm_clean.
+ * Called by vmDestroy.
  * Frees all of the global data structures
  *
  * Results:
@@ -238,11 +238,11 @@ PrintStats(void)
  *----------------------------------------------------------------------
  */
 void
-vm_cleanup_real(void)
+vmDestroyReal(void)
 {
 
    CheckMode();
-   MMU_Done();
+   USLOSS_MmuDone();
    /*
     * Kill the pagers here.
     */
@@ -255,8 +255,8 @@ vm_cleanup_real(void)
    console("blocks: %d\n", vmStats.blocks);
    /* and so on... */
 
-} /* vm_cleanup_real */
-
+} /* vmDestroyReal */
+
 /*
  *----------------------------------------------------------------------
  *
@@ -275,21 +275,20 @@ vm_cleanup_real(void)
  *----------------------------------------------------------------------
  */
 static void
-FaultHandler(int type /* MMU_INT */,
+FaultHandler(int type /* USLOSS_MMU_INT */,
              int arg  /* Offset within VM region */)
 {
    int cause;
 
-   assert(type == MMU_INT);
-   cause = MMU_GetCause();
-   assert(cause == MMU_FAULT);
+   assert(type == USLOSS_MMU_INT);
+   cause = USLOSS_MmuGetCause();
+   assert(cause == USLOSS_MMU_FAULT);
    vmStats.faults++;
    /*
     * Fill in faults[pid % MAXPROC], send it to the pagers, and wait for the
     * reply.
     */
 } /* FaultHandler */
-
 
 /*
  *----------------------------------------------------------------------
