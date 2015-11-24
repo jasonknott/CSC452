@@ -1,11 +1,9 @@
 /*
- * skeleton.c
+ * phase5.c
  *
  * This is a skeleton for phase5 of the programming assignment. It
  * doesn't do much -- it is just intended to get you started.
  */
-
-
 #include <assert.h>
 #include <phase1.h>
 #include <phase2.h>
@@ -307,7 +305,7 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */,
 /*
  *----------------------------------------------------------------------
  *
- * Pager 
+ * Pager
  *
  * Kernel process that handles page faults and does page replacement.
  *
@@ -331,6 +329,7 @@ static int Pager(char *buf)
     }
     return 0;
 } /* Pager */
+
 /*
  *----------------------------------------------------------------------
  * Name: setUserMode
