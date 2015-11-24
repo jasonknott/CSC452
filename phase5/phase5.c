@@ -23,7 +23,7 @@ extern void mbox_send(sysargs *args_ptr);
 extern void mbox_receive(sysargs *args_ptr);
 extern void mbox_condsend(sysargs *args_ptr);
 extern void mbox_condreceive(sysargs *args_ptr);
-
+void setUserMode();
 static Process processes[MAXPROC];
 
 FaultMsg faults[MAXPROC]; /* Note that a process can have only
@@ -42,7 +42,7 @@ static void vmDestroy(sysargs *sysargsPtr);
  *
  * start4 --
  *
- * Initializes the VM system call handlers. 
+ * Initializes the VM system call handlers.
  *
  * Results:
  *      MMU return status
@@ -52,8 +52,7 @@ static void vmDestroy(sysargs *sysargsPtr);
  *
  *----------------------------------------------------------------------
  */
-int
-start4(char *arg)
+int start4(char *arg)
 {
     int pid;
     int result;
@@ -101,10 +100,24 @@ start4(char *arg)
  *
  *----------------------------------------------------------------------
  */
-static void
-vmInit(sysargs *sysargsPtr)
+static void vmInit(sysargs *sysargsPtr)
 {
     CheckMode();
+    int mappings = (long) sysargsPtr->arg1;
+    int pages = (long) sysargsPtr->arg2;
+    int frames = (long) sysargsPtr->arg3;
+    int pagers = (long) sysargsPtr->arg4;
+    int returnValue = vmInitReal(mappings, pages, frames, pagers);
+    if(returnValue == -1)
+    {
+        sysargsPtr->arg4 = -1;
+    }
+    else
+    {
+        sysargsPtr->arg4 = 0;
+    }
+    sysargsPtr->arg1 = (void *) ( (long) returnValue);
+    setUserMode();
 } /* vmInit */
 
 
@@ -124,10 +137,11 @@ vmInit(sysargs *sysargsPtr)
  *----------------------------------------------------------------------
  */
 
-static void
-vmDestroy(sysargs *sysargsPtr)
+static void vmDestroy(sysargs *sysargsPtr)
 {
    CheckMode();
+   vmDestroyReal();
+   setUserMode();
 } /* vmDestroy */
 
 
@@ -203,8 +217,7 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
  *
  *----------------------------------------------------------------------
  */
-void
-PrintStats(void)
+void PrintStats(void)
 {
      USLOSS_Console("VmStats\n");
      USLOSS_Console("pages:          %d\n", vmStats.pages);
@@ -237,8 +250,7 @@ PrintStats(void)
  *
  *----------------------------------------------------------------------
  */
-void
-vmDestroyReal(void)
+void vmDestroyReal(void)
 {
 
    CheckMode();
@@ -246,7 +258,7 @@ vmDestroyReal(void)
    /*
     * Kill the pagers here.
     */
-   /* 
+   /*
     * Print vm statistics.
     */
    console("vmStats:\n");
@@ -274,9 +286,8 @@ vmDestroyReal(void)
  *
  *----------------------------------------------------------------------
  */
-static void
-FaultHandler(int type /* USLOSS_MMU_INT */,
-             int arg  /* Offset within VM region */)
+static void FaultHandler(int type /* USLOSS_MMU_INT */,
+        int arg  /* Offset within VM region */)
 {
    int cause;
 
@@ -305,8 +316,7 @@ FaultHandler(int type /* USLOSS_MMU_INT */,
  *
  *----------------------------------------------------------------------
  */
-static int
-Pager(char *buf)
+static int Pager(char *buf)
 {
     while(1) {
         /* Wait for fault to occur (receive from mailbox) */
@@ -318,3 +328,16 @@ Pager(char *buf)
     }
     return 0;
 } /* Pager */
+/*
+ *----------------------------------------------------------------------
+ * Name: setUserMode
+ * Purpose: switches mode from kernel mode to user mode
+ * Results: None
+ * Side effects: None
+ *----------------------------------------------------------------------
+ */
+void setUserMode(){
+    if(debugflag5 && DEBUG5)
+        USLOSS_Console("setUserMode(): called\n");
+    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+}/* setUserMode */
