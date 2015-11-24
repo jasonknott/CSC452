@@ -13,7 +13,7 @@
 #include <phase1.h>
 #include <phase2.h>
 
-
+#define DEBUG5 1
 /*
  * Pager priority.
  */
@@ -30,6 +30,7 @@
 typedef struct VmStats {
     int pages;          // Size of VM region, in pages
     int frames;         // Size of physical memory, in frames
+    int blocks;
     int diskBlocks;     // Size of disk, in blocks (pages)
     int freeFrames;     // # of frames that are not in-use
     int freeDiskBlocks; // # of blocks that are not in-use
@@ -44,5 +45,5 @@ typedef struct VmStats {
 } VmStats;
 
 extern VmStats	vmStats;
-
+extern int start5(char *);
 #endif /* _PHASE5_H */
