@@ -1,11 +1,10 @@
-
 TARGET = libphase5.a
 ASSIGNMENT = 452phase5
 CC = gcc
 AR = ar
 COBJS = phase5.o p1.o libuser.o
 CSRCS = ${COBJS:.o=.c}
-
+UNAME := $(shell uname -s)
 PHASE1LIB = patrickphase1
 PHASE2LIB = patrickphase2
 PHASE3LIB = patrickphase3

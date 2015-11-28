@@ -1,11 +1,9 @@
 /*
- * skeleton.c
+ * phase5.c
  *
  * This is a skeleton for phase5 of the programming assignment. It
  * doesn't do much -- it is just intended to get you started.
  */
-
-
 #include <assert.h>
 #include <phase1.h>
 #include <phase2.h>
@@ -17,13 +15,13 @@
 #include <vm.h>
 #include <string.h>
 
-extern void mbox_create(sysargs *args_ptr);
-extern void mbox_release(sysargs *args_ptr);
-extern void mbox_send(sysargs *args_ptr);
-extern void mbox_receive(sysargs *args_ptr);
-extern void mbox_condsend(sysargs *args_ptr);
-extern void mbox_condreceive(sysargs *args_ptr);
-
+extern void mbox_create(systemArgs *args_ptr);
+extern void mbox_release(systemArgs *args_ptr);
+extern void mbox_send(systemArgs *args_ptr);
+extern void mbox_receive(systemArgs *args_ptr);
+extern void mbox_condsend(systemArgs *args_ptr);
+extern void mbox_condreceive(systemArgs *args_ptr);
+void setUserMode();
 static Process processes[MAXPROC];
 
 FaultMsg faults[MAXPROC]; /* Note that a process can have only
@@ -33,16 +31,20 @@ FaultMsg faults[MAXPROC]; /* Note that a process can have only
 VmStats  vmStats;
 
 
-static void FaultHandler(int type, int offset);
+static void FaultHandler(int type, void* offset);
 
-static void vmInit(sysargs *sysargsPtr);
-static void vmDestroy(sysargs *sysargsPtr);
+static void vmInit(systemArgs *sysargsPtr);
+void * vmInitReal(int, int, int, int);
+static void vmDestroy(systemArgs *sysargsPtr);
+void vmDestroyReal(void);
+
+int debugflag5 = 0;
 /*
  *----------------------------------------------------------------------
  *
  * start4 --
  *
- * Initializes the VM system call handlers. 
+ * Initializes the VM system call handlers.
  *
  * Results:
  *      MMU return status
@@ -52,20 +54,19 @@ static void vmDestroy(sysargs *sysargsPtr);
  *
  *----------------------------------------------------------------------
  */
-int
-start4(char *arg)
+int start4(char *arg)
 {
     int pid;
     int result;
     int status;
 
     /* to get user-process access to mailbox functions */
-    systemCallVec[SYS_MBOXCREATE]      = mboxCreate;
-    systemCallVec[SYS_MBOXRELEASE]     = mboxRelease;
-    systemCallVec[SYS_MBOXSEND]        = mboxSend;
-    systemCallVec[SYS_MBOXRECEIVE]     = mboxReceive;
-    systemCallVec[SYS_MBOXCONDSEND]    = mboxCondsend;
-    systemCallVec[SYS_MBOXCONDRECEIVE] = mboxCondreceive;
+    systemCallVec[SYS_MBOXCREATE]      = mbox_create;
+    systemCallVec[SYS_MBOXRELEASE]     = mbox_release;
+    systemCallVec[SYS_MBOXSEND]        = mbox_send;
+    systemCallVec[SYS_MBOXRECEIVE]     = mbox_receive;
+    systemCallVec[SYS_MBOXCONDSEND]    = mbox_condsend;
+    systemCallVec[SYS_MBOXCONDRECEIVE] = mbox_condreceive;
 
     /* user-process access to VM functions */
     systemCallVec[SYS_VMINIT]    = vmInit;
@@ -73,12 +74,12 @@ start4(char *arg)
 
     result = Spawn("Start5", start5, NULL, 8*USLOSS_MIN_STACK, 2, &pid);
     if (result != 0) {
-        console("start4(): Error spawning start5\n");
+        USLOSS_Console("start4(): Error spawning start5\n");
         Terminate(1);
     }
     result = Wait(&pid, &status);
     if (result != 0) {
-        console("start4(): Error waiting for start5\n");
+        USLOSS_Console("start4(): Error waiting for start5\n");
         Terminate(1);
     }
     Terminate(0);
@@ -101,10 +102,24 @@ start4(char *arg)
  *
  *----------------------------------------------------------------------
  */
-static void
-vmInit(sysargs *sysargsPtr)
+static void vmInit(systemArgs *sysargsPtr)
 {
     CheckMode();
+    int mappings = (long) sysargsPtr->arg1;
+    int pages = (long) sysargsPtr->arg2;
+    int frames = (long) sysargsPtr->arg3;
+    int pagers = (long) sysargsPtr->arg4;
+    int returnValue = (long) vmInitReal(mappings, pages, frames, pagers);
+    if(returnValue == -1)
+    {
+        sysargsPtr->arg4 = (void *)((long)-1);
+    }
+    else
+    {
+        sysargsPtr->arg4 = (void *)((long)0);
+    }
+    sysargsPtr->arg1 = (void *) ( (long) returnValue);
+    setUserMode();
 } /* vmInit */
 
 
@@ -124,10 +139,11 @@ vmInit(sysargs *sysargsPtr)
  *----------------------------------------------------------------------
  */
 
-static void
-vmDestroy(sysargs *sysargsPtr)
+static void vmDestroy(systemArgs *sysargsPtr)
 {
    CheckMode();
+   vmDestroyReal();
+   setUserMode();
 } /* vmDestroy */
 
 
@@ -148,8 +164,7 @@ vmDestroy(sysargs *sysargsPtr)
  *
  *----------------------------------------------------------------------
  */
-void *
-vmInitReal(int mappings, int pages, int frames, int pagers)
+void * vmInitReal(int mappings, int pages, int frames, int pagers)
 {
    int status;
    int dummy;
@@ -160,7 +175,7 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
       USLOSS_Console("vmInitReal: couldn't init MMU, status %d\n", status);
       abort();
    }
-   int_vec[USLOSS_MMU_INT] = FaultHandler;
+   USLOSS_IntVec[USLOSS_MMU_INT] = FaultHandler;
 
    /*
     * Initialize page tables.
@@ -203,8 +218,7 @@ vmInitReal(int mappings, int pages, int frames, int pagers)
  *
  *----------------------------------------------------------------------
  */
-void
-PrintStats(void)
+void PrintStats(void)
 {
      USLOSS_Console("VmStats\n");
      USLOSS_Console("pages:          %d\n", vmStats.pages);
@@ -237,8 +251,7 @@ PrintStats(void)
  *
  *----------------------------------------------------------------------
  */
-void
-vmDestroyReal(void)
+void vmDestroyReal(void)
 {
 
    CheckMode();
@@ -246,13 +259,13 @@ vmDestroyReal(void)
    /*
     * Kill the pagers here.
     */
-   /* 
+   /*
     * Print vm statistics.
     */
-   console("vmStats:\n");
-   console("pages: %d\n", vmStats.pages);
-   console("frames: %d\n", vmStats.frames);
-   console("blocks: %d\n", vmStats.blocks);
+   USLOSS_Console("vmStats:\n");
+   USLOSS_Console("pages: %d\n", vmStats.pages);
+   USLOSS_Console("frames: %d\n", vmStats.frames);
+   USLOSS_Console("blocks: %d\n", vmStats.blocks);
    /* and so on... */
 
 } /* vmDestroyReal */
@@ -274,9 +287,8 @@ vmDestroyReal(void)
  *
  *----------------------------------------------------------------------
  */
-static void
-FaultHandler(int type /* USLOSS_MMU_INT */,
-             int arg  /* Offset within VM region */)
+static void FaultHandler(int type /* USLOSS_MMU_INT */,
+        void* arg  /* Offset within VM region */)
 {
    int cause;
 
@@ -293,7 +305,7 @@ FaultHandler(int type /* USLOSS_MMU_INT */,
 /*
  *----------------------------------------------------------------------
  *
- * Pager 
+ * Pager
  *
  * Kernel process that handles page faults and does page replacement.
  *
@@ -305,8 +317,7 @@ FaultHandler(int type /* USLOSS_MMU_INT */,
  *
  *----------------------------------------------------------------------
  */
-static int
-Pager(char *buf)
+static int Pager(char *buf)
 {
     while(1) {
         /* Wait for fault to occur (receive from mailbox) */
@@ -318,3 +329,17 @@ Pager(char *buf)
     }
     return 0;
 } /* Pager */
+
+/*
+ *----------------------------------------------------------------------
+ * Name: setUserMode
+ * Purpose: switches mode from kernel mode to user mode
+ * Results: None
+ * Side effects: None
+ *----------------------------------------------------------------------
+ */
+void setUserMode(){
+    if(debugflag5 && DEBUG5)
+        USLOSS_Console("setUserMode(): called\n");
+    USLOSS_PsrSet( USLOSS_PsrGet() & ~USLOSS_PSR_CURRENT_MODE );
+}/* setUserMode */
