@@ -81,10 +81,12 @@ start5(char *arg)
    int  status;
 
    Tconsole("start5(): Running %s\n", TEST);
-   Tconsole("start5(): Pagers: %d, Mappings : %d, Pages: %d, Frames: %d, Children %d, Iterations %d, Priority %d.\n", PAGERS, MAPPINGS, PAGES, FRAMES, CHILDREN, ITERATIONS, PRIORITY);
+   Tconsole("start5(): Pagers: %d, Mappings : %d, Pages: %d, Frames: %d,
+     Children %d, Iterations %d, Priority %d.\n",
+     PAGERS, MAPPINGS, PAGES, FRAMES, CHILDREN, ITERATIONS, PRIORITY);
 
    vmRegion = VmInit( MAPPINGS, PAGES, FRAMES, PAGERS );
-Tconsole("start5(): after call to VmInit\n");
+   Tconsole("start5(): after call to VmInit\n");
    verify(vmRegion != NULL)
 
    SemCreate(0, &sem);
