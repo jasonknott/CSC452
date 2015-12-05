@@ -44,6 +44,9 @@ typedef struct VmStats {
                         //   page. */
 } VmStats;
 
+
+
+
 extern VmStats	vmStats;
 extern int start5(char *);
 #endif /* _PHASE5_H */
