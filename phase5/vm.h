@@ -23,8 +23,20 @@ typedef struct PTE {
     int  state;      // See above.
     int  frame;      // Frame that stores the page (if any). -1 if none.
     int  diskBlock;  // Disk block that stores the page (if any). -1 if none.
+    
     // Add more stuff here
 } PTE;
+
+/*
+ * Frame table entry.
+ */
+typedef struct FTE {
+    int  pid;  
+    int  state;      // See above.
+    int  page;      
+    
+    // Add more stuff here
+} FTE;
 
 /*
  * Per-process information.
@@ -37,7 +49,8 @@ typedef struct Process {
     procPtr nextProcPtr;
     int  numPages;   // Size of the page table.
     PTE  *pageTable; // The page table for the process.
-    
+    int FaultMBoxID;
+    int pages;
     // Add more stuff here */
 } Process;
 

@@ -30,8 +30,7 @@ extern void *vmRegion;
 int sem;
 
 int
-Child(char *arg)
-{
+Child(char *arg){
     int    pid;
     char   str[64]= "This is the first page";
 
@@ -41,7 +40,10 @@ Child(char *arg)
     Tconsole("Child(%d): str = %s\n", pid, str);
     Tconsole("Child(%d): strlen(str) = %d\n", pid, strlen(str));
 
+
+
     memcpy(vmRegion, str, strlen(str)+1);  // +1 to copy nul character
+
 
     Tconsole("Child(%d): after memcpy\n", pid);
 
@@ -49,6 +51,7 @@ Child(char *arg)
         Tconsole("Child(%d): strcmp first attempt worked!\n", pid);
     else
         Tconsole("Child(%d): Wrong string read, first attempt\n", pid);
+
 
     assert(vmStats.faults == 1);
     assert(vmStats.new == 1);
@@ -89,6 +92,10 @@ start5(char *arg)
     Tconsole("          Priority:   %d\n", PRIORITY);
 
     status = VmInit( MAPPINGS, PAGES, FRAMES, PAGERS, &vmRegion );
+
+
+
+
     Tconsole("start5(): after call to VmInit, status = %d\n\n", status);
     assert(status == 0);
     assert(vmRegion != NULL);
@@ -96,6 +103,8 @@ start5(char *arg)
     SemCreate(0, &sem);
 
     Spawn("Child", Child, NULL, USLOSS_MIN_STACK * 7, PRIORITY, &pid);
+
+
 
     SemP( sem);
 

@@ -37,9 +37,12 @@ Child(char *arg)
 
     memOkay = 1;
     buffer = (char *) vmRegion;
-    for ( i = 0; i < USLOSS_MmuPageSize(); i++ )
-        if ( buffer[i] != 0 )
+    for ( i = 0; i < USLOSS_MmuPageSize(); i++ ){
+        // USLOSS_Console("buffer[%i] = %i\n", i, buffer[i]);
+        if ( buffer[i] != 0 ){
             memOkay = 0;
+        }
+    }
 
     if ( memOkay )
         Tconsole("Child(%d): vmRegion is filled with 0's\n", pid);

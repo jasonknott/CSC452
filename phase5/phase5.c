@@ -17,6 +17,12 @@
 #include <vm.h>
 #include <string.h>
 
+
+
+int debugflag5 = 0;
+
+
+//externs
 extern void mbox_create(systemArgs *args_ptr);
 // Found this in libuser.c
 extern int Mbox_Create(int numslots, int slotsize, int *mboxID);
@@ -26,17 +32,7 @@ extern void mbox_receive(systemArgs *args_ptr);
 extern void mbox_condsend(systemArgs *args_ptr);
 extern void mbox_condreceive(systemArgs *args_ptr);
 
-static Process procTable[MAXPROC];
-procPtr listOfPagers;
-
-FaultMsg faults[MAXPROC]; /* Note that a process can have only
-                           * one fault at a time, so we can
-                           * allocate the messages statically
-                           * and index them by pid. */
-VmStats  vmStats;
-void* vmRegion;
-
-
+// Functions
 static void FaultHandler(int type, void* offset);
 static void vmInit(systemArgs *sysargsPtr);
 void * vmInitReal(int, int, int, int);
@@ -49,10 +45,21 @@ void initializeProcTable();
 void addToList(int, procPtr*);
 void printProcList(procPtr*);
 
-
-int debugflag5 = 1;
-
+// Globals
 int faultMailbox;
+VmStats  vmStats;
+static Process procTable[MAXPROC];
+FTE* frameTable;
+procPtr listOfPagers;
+int numOfFrames;
+int numOfPages;
+int numOfPagers;
+int diskBlocks;
+FaultMsg faults[MAXPROC]; /* Note that a process can have only
+                           * one fault at a time, so we can
+                           * allocate the messages statically
+                           * and index them by pid. */
+void* vmRegion;
 
 /*
  *----------------------------------------------------------------------
@@ -86,6 +93,14 @@ int start4(char *arg){
     systemCallVec[SYS_VMINIT]          = vmInit;
     systemCallVec[SYS_VMDESTROY]       = vmDestroy;
 
+
+    // Find stuff out about the disk
+    int sector;
+    int track;
+    int disk;
+    DiskSize(1, &sector, &track, &disk);
+
+    diskBlocks = disk;
 
     initializeProcTable();
 
@@ -131,17 +146,35 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     
     int status;
     int dummy;
-
-
     
+    // Set the globals
+    numOfFrames = frames;
+    numOfPages =  pages;
+    numOfPagers = pagers;
+
+    //check mode
     CheckMode();
     
+    // Initialize USLOSS backend of VM 
     status = USLOSS_MmuInit(mappings, pages, frames);
     if (status != USLOSS_MMU_OK) {
       USLOSS_Console("vmInitReal: couldn't init MMU, status %d\n", status);
       abort();
     }
+    
+    // Interupt stuff
     USLOSS_IntVec[USLOSS_MMU_INT] = FaultHandler;
+    
+    // Get the address the vmRegion
+    vmRegion = USLOSS_MmuRegion(&dummy);
+
+    // Initalize frame table
+    frameTable = malloc(frames * sizeof(FTE));
+    for (int i = 0; i < frames; i++) {
+        frameTable[i].state = UNUSED;
+        frameTable[i].pid = -1;
+        frameTable[i].page = -1;
+    }
 
     /*
     * Initialize page tables.
@@ -149,6 +182,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): Initialize page tables.\n");
     for (int i = 0; i < MAXPROC; ++i){
+        procTable[i].pages = 0;
         procTable[i].pageTable->state = UNUSED;
         procTable[i].pageTable->frame = -1;
         procTable[i].pageTable->diskBlock = -1;
@@ -159,7 +193,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     */
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): Create the fault mailbox.\n");
-    faultMailbox = MboxCreate(1, sizeof(int));
+    faultMailbox = MboxCreate(0, sizeof(FaultMsg));
     if (faultMailbox < 0){
       USLOSS_Console("There has been an error with Mbox_Create\n");
     }
@@ -170,17 +204,18 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     char str[16];
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): About to fork pagers\n");
-    for (int i = 0; i < pages; ++i){
+    for (int i = 0; i < pagers; ++i){
       // USLOSS_MIN_STACK might change
       // int   fork1(char *name, int(*func)(char *), char *arg, int stacksize, int priority);
+      if (debugflag5 && DEBUG5)
+        USLOSS_Console("About to creat Pager%i\n", i);
       sprintf(str, "%d", i);
       int pid = fork1("Pager", Pager, str, USLOSS_MIN_STACK, 2);
-      if (debugflag5 && DEBUG5)
-        USLOSS_Console("Just created Pager%i with pid %i\n", i, pid);
 
       procTable[pid % MAXPROC].pid = pid;
       addToList(pid, &listOfPagers);
     }
+    // Output the list of pages
     if (debugflag5 && DEBUG5)
       printProcList(&listOfPagers);
 
@@ -190,16 +225,16 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): initialize the vmStats structure\n");
     memset((char *) &vmStats, 0, sizeof(VmStats));
-    vmStats.pages = pages;
-    vmStats.frames = frames;
+    
+    
     /*
     * Initialize other vmStats fields.
     */
-    vmStats.pages = 0;
-    vmStats.frames = 0;
-    vmStats.diskBlocks = 0;
-    vmStats.freeFrames = 0;
-    vmStats.freeDiskBlocks = 0;
+    vmStats.pages = pages;
+    vmStats.frames = frames;
+    vmStats.diskBlocks = diskBlocks;
+    vmStats.freeFrames = frames;
+    vmStats.freeDiskBlocks = diskBlocks;
     vmStats.switches = 0;
     vmStats.faults = 0;
     vmStats.new = 0;
@@ -207,7 +242,11 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     vmStats.pageOuts = 0;
     vmStats.replaced = 0;
 
-    return USLOSS_MmuRegion(&dummy);
+    //Filling vmRegion with 0's
+    // DON'T MOVE!!! This has black magic in it, and it scares me....
+    memset(vmRegion, 0, USLOSS_MmuPageSize() * pages);
+
+    return vmRegion;
 } /* vmInitReal */
 
 
@@ -228,18 +267,31 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
  *----------------------------------------------------------------------
  */
 void vmDestroyReal(void){
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("vmDestroyReal(): started\n");
+  
+  CheckMode();
+  USLOSS_MmuDone();
+  /*
+  * Kill the pagers here.
+  */
+  procPtr curr = listOfPagers;
+  FaultMsg dummy;
+  while(curr != NULL){
+    if (debugflag5 && DEBUG5)
+      USLOSS_Console("vmDestroyReal(): zapping %i\n", curr->pid);
+    // Send message to free proc
+    MboxSend(faultMailbox, &dummy, 0);
+    // And then zap it!
+    zap(curr->pid);
+    curr = curr->nextProcPtr;
+  }
 
-    CheckMode();
-    USLOSS_MmuDone();
-    /*
-    * Kill the pagers here.
-    */
 
-    /*
-    * Print vm statistics.
-    */
-
-    PrintStats(); 
+  /*
+  * Print vm statistics.
+  */
+  PrintStats(); 
 } /* vmDestroyReal */
 
 /*
@@ -260,16 +312,41 @@ void vmDestroyReal(void){
  *----------------------------------------------------------------------
  */
 static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset within VM region */){
-   int cause;
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("FaultHandler(): started %i\n", getpid());
 
-   assert(type == USLOSS_MMU_INT);
-   cause = USLOSS_MmuGetCause();
-   assert(cause == USLOSS_MMU_FAULT);
-   vmStats.faults++;
-   /*
-    * Fill in faults[pid % MAXPROC], send it to the pagers, and wait for the
-    * reply.
-    */
+  int cause;
+  // This was given to us, don't look too closely unless or it will look back
+  assert(type == USLOSS_MMU_INT);
+  cause = USLOSS_MmuGetCause();
+  assert(cause == USLOSS_MMU_FAULT);
+  vmStats.faults++;
+
+  FaultMsg fault = (FaultMsg){
+    .pid = getpid(),
+    .addr = arg, // Address that caused the fault.
+    .replyMbox = procTable[getpid() % MAXPROC].FaultMBoxID,  // Mailbox to send reply.
+    // Add more stuff here.
+  };
+
+  faults[getpid() % MAXPROC] = fault;
+
+  
+  // About to free a Pager, they will pick up the rest of the task
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("FaultHandler(): About to send fault %i to faultMailbox %i\n", fault.pid, faultMailbox);
+  int result = MboxSend(faultMailbox, &fault, sizeof(FaultMsg));
+  if (result < 0){
+    USLOSS_Console("There has been an error sending to faultMailbox,\n");
+  }
+
+  // Block this guy until the pager finishes
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("FaultHandler(): About to Block on FaultMBoxID %i\n", procTable[getpid() % MAXPROC].FaultMBoxID);
+  int status;
+  MboxReceive(procTable[getpid() % MAXPROC].FaultMBoxID, &status, sizeof(int));
+
+
 } /* FaultHandler */
 
 /*
@@ -291,25 +368,82 @@ static int Pager(char *buf){
   if (debugflag5 && DEBUG5){
       USLOSS_Console("Pager%s(): started\n", buf);
   }
-  void* dummy = NULL;  
-  while(1) {
+  FaultMsg fault;  
+  while(!isZapped()) {
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Top of loop\n", buf);
+
     /* Wait for fault to occur (receive from mailbox) */
     // Mbox_Receive(int mboxID, void *msgPtr, int msgSize);
-
-    MboxReceive(faultMailbox, dummy, sizeof(int));
+    MboxReceive(faultMailbox, &fault, sizeof(FaultMsg));
     if (debugflag5 && DEBUG5)
-      USLOSS_Console("Pager%s(): Just got message from faultMailbox\n");
+      USLOSS_Console("Pager%s(): Just got message from faultMailbox\n", buf);
+
+    // check if zapped while waiting
+    if (isZapped()) {
+      break;
+    }
+
+    int pid = fault.pid;
+    int page = (int) ((long) fault.addr / USLOSS_MmuPageSize()); // convert to a page
+
 
     /* Look for free frame */
-    
-    /* If there isn't one then use clock algorithm to
-     * replace a page (perhaps write to disk) */
+    int frame;
+    for (frame = 0; frame < numOfFrames; ++frame){
+      if(frameTable[frame].state == UNUSED){
+        break;
+      }
+    }
+
+    // If thre is no free frame, do complicated stuff which I'll put in tomorrow.
+    if(frame >= numOfFrames){
+      if (debugflag5 && DEBUG5)
+        USLOSS_Console("Pager%s(): No free frames, starting clock algorithm\n", buf);
+      /* If there isn't one then use clock algorithm to
+       * replace a page (perhaps write to disk) */
+
+      // Do clock here
   
+    }
+
+    // Check if frame is dirty, if it write 0's
+    if (frameTable[frame].pid != -1){
+      if (debugflag5 && DEBUG5)
+        USLOSS_Console("Pager%s(): Frame is dirty, starting cleaning\n", buf);
+      // Disk writes filling the frame with 0's 
+    } else {
+      // The frame as never been used before, update new.
+      vmStats.new++;
+    }
+
+
+
+    // We know the frame will be clean now
+    frameTable[frame].pid = pid;
+    frameTable[frame].state = INCORE;
+    frameTable[frame].page = page;
+
     /* Load page into frame from disk, if necessary */
+  
     
+    if (debugflag5 && DEBUG5)
+      USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap\n", buf);
+    // USLOSS_MmuMap(int tag, int page, int frame, int protection);
+    // USLOSS_MMU_PROT_RW == 3
+    int result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
+    if (result != USLOSS_MMU_OK) {
+      USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+      USLOSS_Halt(1);
+    }
+
+
     /* Unblock waiting (faulting) process */
+    result = MboxSend(fault.replyMbox, "", 0);
+    if (result < 0) {
+      USLOSS_Console("There bas been an error\n");
+    }
+
   }
   return 0;
 } /* Pager */
@@ -415,7 +549,7 @@ void PrintStats(void){
     USLOSS_Console("new:            %d\n", vmStats.new);
     USLOSS_Console("pageIns:        %d\n", vmStats.pageIns);
     USLOSS_Console("pageOuts:       %d\n", vmStats.pageOuts);
- USLOSS_Console("replaced:       %d\n", vmStats.replaced);
+    USLOSS_Console("replaced:       %d\n", vmStats.replaced);
 } /* PrintStats */
 
 void initializeProcTable(){
@@ -423,12 +557,16 @@ void initializeProcTable(){
         USLOSS_Console("initializeProcTable() called\n");
     int i;
     for(i = 0; i < MAXPROC; i++){
+      int tmpMbox;
+      Mbox_Create(1, sizeof(int), &tmpMbox);
         procTable[i] = (Process){
             .pid = -1,
             .nextProcPtr = NULL,
-            .pageTable = &(PTE) {}
-        //     .privateMBoxID = MboxCreate(0,sizeof(int)),
-        //     .mboxTermDriver = -1,
+            .pageTable = &(PTE) {},
+            // Might have to change to 1 slot later...
+            .FaultMBoxID = tmpMbox,
+            // MboxCreate(0,sizeof(int)),
+            .pages = -1,
         //     .mboxTermReal = -1,
         //     .WakeTime = -1,
         //     .opr = 1,
