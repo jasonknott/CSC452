@@ -19,7 +19,7 @@
 
 
 
-int debugflag5 = 0;
+int debugflag5 = 1;
 
 
 //externs
@@ -46,6 +46,9 @@ void addToList(int, procPtr*);
 void printProcList(procPtr*);
 
 // Globals
+int sector;
+int track;
+int disk;
 int faultMailbox;
 VmStats  vmStats;
 static Process procTable[MAXPROC];
@@ -55,6 +58,7 @@ int numOfFrames;
 int numOfPages;
 int numOfPagers;
 int diskBlocks;
+int frameArm;
 FaultMsg faults[MAXPROC]; /* Note that a process can have only
                            * one fault at a time, so we can
                            * allocate the messages statically
@@ -95,9 +99,6 @@ int start4(char *arg){
 
 
     // Find stuff out about the disk
-    int sector;
-    int track;
-    int disk;
     DiskSize(1, &sector, &track, &disk);
 
     diskBlocks = disk;
@@ -174,6 +175,9 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
         frameTable[i].state = UNUSED;
         frameTable[i].pid = -1;
         frameTable[i].page = -1;
+        // track and frame
+        frameTable[i].track = i/2;
+        frameTable[i].sector = i%2 * 8;
     }
 
     /*
@@ -390,28 +394,55 @@ static int Pager(char *buf){
 
     /* Look for free frame */
     int frame;
+    int freeFrames = FALSE;
     for (frame = 0; frame < numOfFrames; ++frame){
-      if(frameTable[frame].state == UNUSED){
+      if(frameTable[(frame + frameArm) % numOfFrames].state == UNUSED){
+        freeFrames = TRUE;
         break;
       }
     }
+    frame = (frame + frameArm) % numOfFrames;
 
     // If thre is no free frame, do complicated stuff which I'll put in tomorrow.
-    if(frame >= numOfFrames){
+    if(freeFrames == FALSE){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): No free frames, starting clock algorithm\n", buf);
       /* If there isn't one then use clock algorithm to
        * replace a page (perhaps write to disk) */
+      while(frameTable[frameArm].state != UNUSED)
+        
+        frameTable[frameArm].state = UNUSED;
 
-      // Do clock here
-  
+        if (frameArm++ > numOfFrames){
+          frameArm = 0;
+        }
+    // Setting the frame to the first unused frame the clock finds
+    frame = frameArm;
     }
 
     // Check if frame is dirty, if it write 0's
     if (frameTable[frame].pid != -1){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame is dirty, starting cleaning\n", buf);
+      
       // Disk writes filling the frame with 0's 
+      char *buf = malloc(USLOSS_MmuPageSize());
+      memset(buf, 0, USLOSS_MmuPageSize());
+      // int DiskWrite(void *diskBuffer, int unit, int track, int first, int sectors, int *status)
+      // a page is 8 sectors large
+      // frameTable[frame].sector will be 0 or 8
+      int status;
+      DiskWrite(&buf, 0, frameTable[frame].track, frameTable[frame].sector, 8 ,&status);
+
+      // Not sure about this part here....
+      int result = USLOSS_MmuMap(0, page, frame, 3);
+      if (result != USLOSS_MMU_OK) {
+        USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+        USLOSS_Halt(1);
+      }
+
+
+
     } else {
       // The frame as never been used before, update new.
       vmStats.new++;

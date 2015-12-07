@@ -14,6 +14,9 @@
 #include <phase2.h>
 
 #define DEBUG5 1
+#define TRUE 1
+#define FALSE 0
+
 /*
  * Pager priority.
  */

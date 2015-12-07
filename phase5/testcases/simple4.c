@@ -33,13 +33,13 @@ Child(char *arg)
     int     pid;
     int     page;
     int     i;
-    char   *buffer;
+    // char   *buffer = NULL;
     VmStats before;
     int     value;
 
     GetPID(&pid);
     Tconsole("Child(): starting (pid = %d)\n", pid);
-    buffer = (char *) vmRegion;
+    // buffer = (char *) vmRegion;
 
 
     for (i = 0; i < ITERATIONS; i++) {

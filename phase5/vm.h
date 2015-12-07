@@ -34,14 +34,14 @@ typedef struct FTE {
     int  pid;  
     int  state;      // See above.
     int  page;      
-    
+    int track;
+    int sector;
     // Add more stuff here
 } FTE;
 
 /*
  * Per-process information.
  */
-typedef struct Process Process;
 typedef struct Process * procPtr;
 
 typedef struct Process {
