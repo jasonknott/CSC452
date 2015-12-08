@@ -47,7 +47,7 @@ typedef struct VmStats {
                         //   page. */
 } VmStats;
 
-
+int vmStarted;
 
 
 extern VmStats	vmStats;
