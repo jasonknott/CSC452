@@ -28,7 +28,17 @@ p1_switch(int old, int new)
     }
 
     vmStats.switches++;
-
+	// if oldpid is not  > 0 
+ //    check processes old pid > 0 
+/*
+    go through page table for old pid
+    	if old framenum != 0
+    		unmap(page for old)
+    if new processes pid >  0:
+    	go through page table for new 
+    		if old pagetablke[i].framenum != -1
+    			map(page which is i, frame, RW)
+*/
 
 } /* p1_switch */
 
@@ -41,6 +51,19 @@ p1_quit(int pid)
     if (vmStarted == FALSE){
     	return;
     }
-    
+/*
+    for(pagetable )
+    	if pagetable[i].framenum != -1:
+    		unmap(page/i, frame)
+    		frametable[framenum].status = unused
+    		frametable[framenum].pid = -1
+    		vmStats.freeFrames++;
+    for(diskblockTable (????)):
+    	if[diskblockTable[i].pid == pid (the pid calling quit)]:
+    		diskblockTable[i].status = unused;
+  
+    procTable[pid].pid = -1
+*/
+
 } /* p1_quit */
 
