@@ -32,16 +32,18 @@ typedef struct PTE {
  */
 typedef struct FTE {
     int  pid;  
+    int  referenced;
+    int  clean;
     int  state;      // See above.
     int  page;      
-    
+    int  track;
+    int  sector;
     // Add more stuff here
 } FTE;
 
 /*
  * Per-process information.
  */
-typedef struct Process Process;
 typedef struct Process * procPtr;
 
 typedef struct Process {

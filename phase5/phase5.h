@@ -14,6 +14,9 @@
 #include <phase2.h>
 
 #define DEBUG5 1
+#define TRUE 1
+#define FALSE 0
+
 /*
  * Pager priority.
  */
@@ -44,7 +47,7 @@ typedef struct VmStats {
                         //   page. */
 } VmStats;
 
-
+int vmStarted;
 
 
 extern VmStats	vmStats;
