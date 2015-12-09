@@ -3,7 +3,6 @@
   
   Programmers: David Christy
 
-
  */
 #include <assert.h>
 #include <phase1.h>
@@ -20,7 +19,7 @@
 
 #define NUMTRACKS 16
 
-int debugflag5 = 1;
+int debugflag5 = 0;
 
 
 //externs
@@ -159,6 +158,11 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     
     int status;
     int dummy;
+
+	if(mappings < 0 || pages < 0 || frames < 0 || pagers < 0 || pagers > MAXPAGERS)
+	{
+		return (void *) -1L;
+	}
     
     // Set the globals
     numOfFrames = frames;
@@ -169,7 +173,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     CheckMode();
     
     vmStarted = TRUE;
-
 
     // Initialize USLOSS backend of VM 
     status = USLOSS_MmuInit(mappings, pages, frames);
@@ -191,8 +194,8 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
         frameTable[i].pid = -1;
         frameTable[i].page = -1;
         // track and frame
-        frameTable[i].track = i/2;
-        frameTable[i].sector = i%2 * 8;
+        //frameTable[i].track = i/2;
+        //frameTable[i].sector = i%2 * 8;
         frameTable[i].referenced = FALSE;
         frameTable[i].clean = TRUE;
     }
@@ -259,13 +262,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     vmStats.pageOuts = 0;
     vmStats.replaced = 0;
 
-
-    USLOSS_Console("before: vmRegion\n");
-    //Filling vmRegion with 0's
-    // DON'T MOVE!!! This has black magic in it, and it scares me....
-    memset(vmRegion, 0, (USLOSS_MmuPageSize() * pages));
-    USLOSS_Console("after: vmRegion\n");
-
     return vmRegion;
 } /* vmInitReal */
 
@@ -307,7 +303,7 @@ void vmDestroyReal(void){
     curr = curr->nextProcPtr;
   }
 
-
+  vmStarted = FALSE;
   /*
   * Print vm statistics.
   */
@@ -365,9 +361,7 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset wit
     USLOSS_Console("FaultHandler(): About to Block on FaultMBoxID %i\n", procTable[getpid() % MAXPROC].FaultMBoxID);
   int status;
   MboxReceive(procTable[getpid() % MAXPROC].FaultMBoxID, &status, sizeof(int));
-
-
-
+  memset(vmRegion, 0, USLOSS_MmuPageSize() * procTable[getpid()%MAXPROC].numPages);
 } /* FaultHandler */
 
 /*
@@ -402,7 +396,6 @@ static int Pager(char *buf){
     MboxReceive(faultMailbox, &fault, sizeof(FaultMsg));
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Just got message from faultMailbox\n", buf);
-
     // check if zapped while waiting
     if (isZapped()) {
       break;
@@ -771,8 +764,8 @@ static void vmInit(systemArgs *sysargsPtr){
     int pages = (long) sysargsPtr->arg2;
     int frames = (long) sysargsPtr->arg3;
     int pagers = (long) sysargsPtr->arg4;
-    int returnValue = (long) vmInitReal(mappings, pages, frames, pagers);
-    if(returnValue == -1)
+    void * returnValue = vmInitReal(mappings, pages, frames, pagers);
+    if((long) returnValue == -1)
     {
         sysargsPtr->arg4 = (void *)((long)-1);
     }
@@ -781,7 +774,7 @@ static void vmInit(systemArgs *sysargsPtr){
         sysargsPtr->arg4 = (void *)((long)0);
     }
     sysargsPtr->arg1 = (void *) ( (long) returnValue);
-    setUserMode();
+    //setUserMode();
 } /* vmInit */
 
 

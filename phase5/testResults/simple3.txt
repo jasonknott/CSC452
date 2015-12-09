@@ -8,7 +8,8 @@ start5(): Pagers:     1
           Priority:   5
 start5(): after call to VmInit, status = 0
 
-Child(): starting (pid = 11)
+
+Child(11): starting
 Child(11): terminating
 
 start5(): done
@@ -18,7 +19,7 @@ frames:         3
 diskBlocks:     32
 freeFrames:     3
 freeDiskBlocks: 32
-switches:       20
+switches:       18
 faults:         3
 new:            3
 pageIns:        0
