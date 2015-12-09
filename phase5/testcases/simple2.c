@@ -1,5 +1,7 @@
 /*
  * simple2.c
+ * Reads bytes from page 0 of the vmRegion to be sure they are
+ * all set to 0.
  *
  */
 #include <phase5.h>
@@ -33,16 +35,13 @@ Child(char *arg)
     char *buffer;
 
     GetPID(&pid);
-    Tconsole("Child(): starting (pid = %d)\n", pid);
+    Tconsole("\nChild(%d): starting\n", pid);
 
     memOkay = 1;
     buffer = (char *) vmRegion;
-    for ( i = 0; i < USLOSS_MmuPageSize(); i++ ){
-        // USLOSS_Console("buffer[%i] = %i\n", i, buffer[i]);
-        if ( buffer[i] != 0 ){
+    for ( i = 0; i < USLOSS_MmuPageSize(); i++ )
+        if ( buffer[i] != 0 )
             memOkay = 0;
-        }
-    }
 
     if ( memOkay )
         Tconsole("Child(%d): vmRegion is filled with 0's\n", pid);

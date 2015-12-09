@@ -1,8 +1,8 @@
 /*
  * simple4.c
  *
- * One process writes every page, where frames = pages-1. If the clock
- * algorithm starts with frame 0, this will cause a page fault on every
+ * One process reads every byte of every page, where frames = pages-1. If the
+ * clock algorithm starts with frame 0, this will cause a page fault on every
  * access. 
  */
 #include <phase5.h>
@@ -23,7 +23,7 @@
 #define PAGERS      1
 #define MAPPINGS    PAGES
 
-void *vmRegion;
+extern void *vmRegion;
 
 int sem;
 
@@ -33,19 +33,20 @@ Child(char *arg)
     int     pid;
     int     page;
     int     i;
-    // char   *buffer = NULL;
+    char   *buffer;
     VmStats before;
     int     value;
 
     GetPID(&pid);
-    Tconsole("Child(): starting (pid = %d)\n", pid);
-    // buffer = (char *) vmRegion;
+    Tconsole("\nChild(%d): starting\n", pid);
+
+    buffer = (char *) vmRegion;
 
 
     for (i = 0; i < ITERATIONS; i++) {
         Tconsole("\nChild(%d): iteration %d\n", pid, i);
         before = vmStats;
-Tconsole("before.faults = %d\n", before.faults);
+        Tconsole("before.faults = %d\n", before.faults);
 
         // Read one int from the first location on each of the pages
         // in the VM region.
@@ -57,11 +58,12 @@ Tconsole("before.faults = %d\n", before.faults);
             assert(value == 0);
         }
 
-Tconsole("vmStats.faults = %d\n", vmStats.faults);
+        Tconsole("Child(%d): vmStats.faults = %d\n", pid, vmStats.faults);
         // The number of faults should equal the number of pages
-        assert(vmStats.faults - before.faults == PAGES + i);
+        assert(vmStats.faults - before.faults == PAGES);
     }
 
+    Tconsole("\n");
     SemV(sem);
     Terminate(123);
     return 0;
@@ -83,8 +85,8 @@ start5(char *arg)
     Tconsole("          Iterations: %d\n", ITERATIONS);
     Tconsole("          Priority:   %d\n", PRIORITY);
 
-    status = VmInit( MAPPINGS, PAGES, FRAMES, PAGERS, vmRegion );
-	USLOSS_Console("HERE!");
+    status = VmInit( MAPPINGS, PAGES, FRAMES, PAGERS, &vmRegion );
+
     Tconsole("start5(): after call to VmInit, status = %d\n\n", status);
     assert(status == 0);
     assert(vmRegion != NULL);

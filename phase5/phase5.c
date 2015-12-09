@@ -19,7 +19,7 @@
 
 #define NUMTRACKS 16
 
-int debugflag5 = 0;
+int debugflag5 = 1;
 
 
 //externs
@@ -231,7 +231,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("About to creat Pager%i\n", i);
       sprintf(str, "%d", i);
-      int pid = fork1("Pager", Pager, &str[0], USLOSS_MIN_STACK, 2);
+      int pid = fork1("Pager", Pager, &str[0], 8*USLOSS_MIN_STACK, 2);
 
       procTable[pid % MAXPROC].pid = pid;
       addToList(pid, &listOfPagers);
@@ -346,7 +346,6 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset wit
   };
 
   faults[getpid() % MAXPROC] = fault;
-
   
   // About to free a Pager, they will pick up the rest of the task
   if (debugflag5 && DEBUG5)
@@ -442,11 +441,12 @@ static int Pager(char *buf){
     }
 
     // USLOSS_mmu_setaccess(frame, 0);
-    // USLOSS_Mmu_UnMap(0, 0, frame, USLOSS_MMU_PROT_RW)
+    // USLOSS_MmuUnmap(0, frame);
+    int result;
    if (debugflag5 && DEBUG5)
-      USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap\n", buf);
+      USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap on page %i and frame %i\n", buf, page, frame);
     // USLOSS_MmuMap(int tag, int page, int frame, int protection);
-    int result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
+    result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
     if (result != USLOSS_MMU_OK) {
       USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
       USLOSS_Halt(1);
@@ -456,6 +456,7 @@ static int Pager(char *buf){
 
     // cleaning up the frametable
     frameTable[frame].pid = pid;
+    frameTable[frame].state = INCORE;
     frameTable[frame].clean = TRUE;
     frameTable[frame].referenced = TRUE;
     frameTable[frame].page = page;
@@ -554,11 +555,14 @@ int findFrame(int pagerID) {
   int frame = 0;
   int freeFrames = vmStats.freeFrames != 0;
   for (frame = 0; frame < numOfFrames && freeFrames; ++frame){
+    USLOSS_Console("tmpframe: %i\n", frame);
     if(frameTable[frame].state == UNUSED){
       freeFrames = TRUE;
       break;
     }
   }
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("\n\nfindFrame%i(): frame%i of %i\n", pagerID, frame, numOfFrames);
 
   // TODO: Add mutex here
   if(freeFrames == FALSE)
@@ -774,7 +778,7 @@ static void vmInit(systemArgs *sysargsPtr){
         sysargsPtr->arg4 = (void *)((long)0);
     }
     sysargsPtr->arg1 = (void *) ( (long) returnValue);
-    //setUserMode();
+    setUserMode();
 } /* vmInit */
 
 
