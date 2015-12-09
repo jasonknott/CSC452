@@ -417,7 +417,7 @@ static int Pager(char *buf){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Frame #%i found\n", buf, frame);
 
-    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pageTable[0], page);
+    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pageTable, page);
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
