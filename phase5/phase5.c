@@ -412,10 +412,17 @@ static int Pager(char *buf){
     int pid = fault.pid;
 
     // FindFrame
+
     int frame = findFrame(pagerID);
+    if (debugflag5 && DEBUG5)
+      USLOSS_Console("Pager%s(): Frame #%i found\n", buf, frame);
+
+    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC], page);
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
+      if (debugflag5 && DEBUG5)
+        USLOSS_Console("Pager%s(): Frame #%i is unused\n", buf, frame);
       vmStats.freeFrames--;
     } else{
         // The frame is used...
@@ -540,6 +547,8 @@ int outputFrame(int pid, int pagenum, void *bufDisk)
  */
 
 int findFrame(int pagerID) {
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("findFrame%i(): started\n", pagerID);
 
   /* Look for free frame */
   int frame = 0;
