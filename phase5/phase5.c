@@ -203,8 +203,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): Initialize page tables.\n");
     for (int i = 0; i < MAXPROC; ++i){
-        //procTable[i].pages = 0;
-        procTable[i].pageTable = NULL;
         procTable[i].numPages = pages;
     }
 
@@ -417,13 +415,13 @@ static int Pager(char *buf){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Frame #%i found\n", buf, frame);
 
-    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pageTable, page);
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame #%i is unused\n", buf, frame);
       vmStats.freeFrames--;
+      vmStats.new++;
     } else{
         // The frame is used...
         // get access with USELOSS call
@@ -452,14 +450,23 @@ static int Pager(char *buf){
 
     // USLOSS_mmu_setaccess(frame, 0);
     // USLOSS_Mmu_UnMap(0, 0, frame, USLOSS_MMU_PROT_RW)
-    
+   if (debugflag5 && DEBUG5)
+      USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap\n", buf);
+    // USLOSS_MmuMap(int tag, int page, int frame, int protection);
+    int result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
+    if (result != USLOSS_MMU_OK) {
+      USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+      USLOSS_Halt(1);
+    }
+
+
+
     // cleaning up the frametable
     frameTable[frame].pid = pid;
     frameTable[frame].clean = TRUE;
     frameTable[frame].referenced = TRUE;
     frameTable[frame].page = page;
     
-  	int result;
     /* Unblock waiting (faulting) process */
     result = MboxSend(fault.replyMbox, "", 0);
     if (result < 0) {
