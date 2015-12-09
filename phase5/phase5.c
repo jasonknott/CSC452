@@ -168,6 +168,9 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     //check mode
     CheckMode();
     
+    vmStarted = TRUE;
+
+
     // Initialize USLOSS backend of VM 
     status = USLOSS_MmuInit(mappings, pages, frames);
     if (status != USLOSS_MMU_OK) {
@@ -202,7 +205,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     for (int i = 0; i < MAXPROC; ++i){
         //procTable[i].pages = 0;
         procTable[i].pageTable = NULL;
-		procTable[i].numPages = pages;
+        procTable[i].numPages = pages;
     }
 
     /* 
@@ -264,7 +267,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     memset(vmRegion, 0, USLOSS_MmuPageSize() * pages);
 
 
-    vmStarted = TRUE;
 
     return vmRegion;
 } /* vmInitReal */
@@ -417,7 +419,7 @@ static int Pager(char *buf){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Frame #%i found\n", buf, frame);
 
-    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC], page);
+    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pid, page);
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
@@ -610,25 +612,28 @@ int findFrame(int pagerID) {
  *
  *----------------------------------------------------------------------
  */
-void forkReal(int pid) 
-{
-	if(vmStarted == FALSE)
-	{
-		return;
-	}
-	//There is nothing to do, because we do this in vmINIT; which is VERY BAD!
-	int numPages = procTable[pid%MAXPROC].numPages;
-	procTable[pid%MAXPROC].pageTable = malloc(sizeof(PTE) * numPages);
+void forkReal(int pid){
+  if(debugflag5 && DEBUG5)
+    USLOSS_Console("forkReal(): forking %i\n", pid);
+  if(vmStarted == FALSE && pid != 9)
+  {
+    return;
+  }
+  //There is nothing to do, because we do this in vmINIT; which is VERY BAD!
+  int numPages = procTable[pid%MAXPROC].numPages;
+  procTable[pid%MAXPROC].pageTable = malloc(sizeof(PTE) * numPages);
 
-	for(int i = 0; i < numPages; i++)
-	{
-		procTable[pid % MAXPROC].pageTable[i].state = UNUSED;
-		procTable[pid % MAXPROC].pageTable[i].frame = -1;
-		procTable[pid % MAXPROC].pageTable[i].trackBlock = -1;
-		//Add more stuff here. 
-	}
+  for(int i = 0; i < numPages; i++)
+  {
+    procTable[pid % MAXPROC].pageTable[i].state = UNUSED;
+    procTable[pid % MAXPROC].pageTable[i].frame = -1;
+    procTable[pid % MAXPROC].pageTable[i].trackBlock = -1;
+    //Add more stuff here. 
+  }
 	procTable[pid % MAXPROC].pid = pid;
-	
+  if(debugflag5 && DEBUG5)
+    USLOSS_Console("forkReal(): forked %i\n", procTable[pid % MAXPROC].pid);
+  
 }/* fork1 */
 
 /*
