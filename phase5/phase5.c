@@ -413,13 +413,11 @@ static int Pager(char *buf){
     int page = (int) ((long) fault.addr / USLOSS_MmuPageSize()); // convert to a page
     int pid = fault.pid;
 
-    // FindFrame
-
     int frame = findFrame(pagerID);
     if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): Frame #%i found\n", buf, frame);
 
-    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pid, page);
+    USLOSS_Console("pid: %i, page %i\n", procTable[pid % MAXPROC].pageTable[0], page);
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
@@ -621,7 +619,9 @@ void forkReal(int pid){
   }
   //There is nothing to do, because we do this in vmINIT; which is VERY BAD!
   int numPages = procTable[pid%MAXPROC].numPages;
-  procTable[pid%MAXPROC].pageTable = malloc(sizeof(PTE) * numPages);
+  procTable[pid % MAXPROC].pageTable = malloc(sizeof(PTE) * numPages);
+  if(debugflag5 && DEBUG5)
+    USLOSS_Console("forkReal(): pageTable %x\n", procTable[pid % MAXPROC].pageTable);
 
   for(int i = 0; i < numPages; i++)
   {
@@ -630,9 +630,7 @@ void forkReal(int pid){
     procTable[pid % MAXPROC].pageTable[i].trackBlock = -1;
     //Add more stuff here. 
   }
-	procTable[pid % MAXPROC].pid = pid;
-  if(debugflag5 && DEBUG5)
-    USLOSS_Console("forkReal(): forked %i\n", procTable[pid % MAXPROC].pid);
+  procTable[pid % MAXPROC].pid = pid;
   
 }/* fork1 */
 
@@ -858,7 +856,7 @@ void initializeProcTable(){
             .pid = -1,
             .nextProcPtr = NULL,
             .pageTable = NULL,
-			.numPages = -1,
+			      .numPages = 10,
             .FaultMBoxID = tmpMbox,
             .pages = -1,
         };
