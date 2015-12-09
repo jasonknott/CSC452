@@ -1,5 +1,7 @@
 /*
  * simple3.c
+ * Writes bytes into all 3 pages of the vmRegion.
+ * Should see 3 page faults.
  *
  */
 #include <phase5.h>
@@ -33,7 +35,8 @@ Child(char *arg)
     char *buffer;
 
     GetPID(&pid);
-    Tconsole("Child(): starting (pid = %d)\n", pid);
+    Tconsole("\nChild(%d): starting\n", pid);
+
     buffer = (char *) vmRegion;
     for (i = 0; i < PAGES * USLOSS_MmuPageSize(); i++) {
         buffer[i] = i % 256;

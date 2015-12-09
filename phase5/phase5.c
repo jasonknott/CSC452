@@ -231,7 +231,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("About to creat Pager%i\n", i);
       sprintf(str, "%d", i);
-      int pid = fork1("Pager", Pager, &str[0], USLOSS_MIN_STACK, 2);
+      int pid = fork1("Pager", Pager, &str[0], 8*USLOSS_MIN_STACK, 2);
 
       procTable[pid % MAXPROC].pid = pid;
       addToList(pid, &listOfPagers);
@@ -774,7 +774,7 @@ static void vmInit(systemArgs *sysargsPtr){
         sysargsPtr->arg4 = (void *)((long)0);
     }
     sysargsPtr->arg1 = (void *) ( (long) returnValue);
-    //setUserMode();
+    setUserMode();
 } /* vmInit */
 
 

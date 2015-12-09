@@ -18,7 +18,7 @@ HDRS = vm.h
 
 INCLUDE = ./usloss/include
 
-CFLAGS = -Wall -g -std=gnu99 -I${INCLUDE} -I. -Werror
+CFLAGS = -Wall -g -std=gnu99 -I${INCLUDE} -I. #-Werror
 
 ifeq ($(UNAME), Darwin)
         CFLAGS += -D_XOPEN_SOURCE
