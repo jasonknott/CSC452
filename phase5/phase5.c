@@ -413,6 +413,7 @@ static int Pager(char *buf){
 
     // FindFrame
     int frame = findFrame(pagerID);
+    procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
     if(frameTable[frame].state == UNUSED){
       vmStats.freeFrames--;
@@ -426,17 +427,20 @@ static int Pager(char *buf){
               int trackBlock = outputFrame(pid, page, &bufDisk);
               // store diskBlock in old pagetable Entry
               procTable[pid % MAXPROC].pageTable[page].trackBlock = trackBlock;
+              frameTable[trackBlockTable[trackBlock].frame].pid = pid;
         } 
-        // oldProcess.pageTable.frameNum = -1;
-        frameTable[]
-        // if proctable[pid].pagetable->diskBlock == -1:
-              // it's not on the disk
-              // USLOSS_MmuMap(0, 0, frame, USLOSS_MMU_PROT_RW);
-              // memset(vmRegion, \0, USLOSS_MmuPageSize());
-        // else
-              // getFrame(pid, page, bufDisk);
-              // USLOSS_MmuMap(0, 0 framenum, RW)
-              // memcyp(vmRegion, bufDisk, USLOSS_MmuPageSize)
+
+        if (procTable[pid % MAXPROC].pageTable[page].state == UNUSED){
+              // This is the easy case of it not being on the disk
+              // Page might be 0 because we map it for page?
+              USLOSS_MmuMap(0, 0, frame, USLOSS_MMU_PROT_RW);
+              memset(vmRegion, '\0', USLOSS_MmuPageSize());
+        } else {
+              // If the frame is on disk, get the data and copy it too the vmRegion
+              int oldFrame = getFrame(pid, page, bufDisk);
+              USLOSS_MmuMap(0, 0, oldFrame, USLOSS_MMU_PROT_RW);
+              memcpy(vmRegion, bufDisk, USLOSS_MmuPageSize());
+        }
     }
 
     // USLOSS_mmu_setaccess(frame, 0);
@@ -447,7 +451,8 @@ static int Pager(char *buf){
     frameTable[frame].clean = TRUE;
     frameTable[frame].referenced = TRUE;
     frameTable[frame].page = page;
-	int result;
+    
+  	int result;
     /* Unblock waiting (faulting) process */
     result = MboxSend(fault.replyMbox, "", 0);
     if (result < 0) {
@@ -513,10 +518,7 @@ int outputFrame(int pid, int pagenum, void *bufDisk)
 	USLOSS_Halt(1);
   }
   diskWriteReal(1, track, 0, 8, bufDisk); 
-  trackBlockTable[track].status = INCORE;
-  trackBlockTable[track].pid = pid;
-  trackBlockTable[track].page = pagnum;
-  trackBlockTalbe[track].frame = procTable[pid%MAXPROC].pageTable[pagenum].frame;
+  trackBlockTable[track].status = INCORE; 
   vmStats.pageOuts++;
   return track;
 }
@@ -613,7 +615,7 @@ void forkReal(int pid)
 	{
 		procTable[pid % MAXPROC].pageTable[i].state = UNUSED;
 		procTable[pid % MAXPROC].pageTable[i].frame = -1;
-		procTable[pid % MAXPROC].pageTable[i].diskBlock = -1;
+		procTable[pid % MAXPROC].pageTable[i].trackBlock = -1;
 		//Add more stuff here. 
 	}
 	procTable[pid % MAXPROC].pid = pid;
@@ -708,7 +710,7 @@ void quitReal(int pid)
 			}
 			procTable[pid%MAXPROC].pageTable[i].state = UNUSED;
 			procTable[pid%MAXPROC].pageTable[i].frame = -1;
-			procTable[pid%MAXPROC].pageTable[i].diskBlock = -1; //Maybe?
+			procTable[pid%MAXPROC].pageTable[i].trackBlock = -1; //Maybe?
 			frameTable[frame].pid = -1;
 			frameTable[frame].referenced = FALSE; //This may not allow track to be reused.
 			//TODO: NEED TO ADD MORE HERE
