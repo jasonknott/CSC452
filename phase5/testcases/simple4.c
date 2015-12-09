@@ -84,7 +84,7 @@ start5(char *arg)
     Tconsole("          Priority:   %d\n", PRIORITY);
 
     status = VmInit( MAPPINGS, PAGES, FRAMES, PAGERS, vmRegion );
-
+	USLOSS_Console("HERE!");
     Tconsole("start5(): after call to VmInit, status = %d\n\n", status);
     assert(status == 0);
     assert(vmRegion != NULL);
