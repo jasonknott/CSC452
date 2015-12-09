@@ -496,7 +496,6 @@ int getFrame(int pid,int page,void *bufDisk){
 int outputFrame(int pid, int pagenum, void *bufDisk)
 {
   USLOSS_MmuMap(0, pagenum, procTable[pid%MAXPROC].pageTable[pagenum].frame, USLOSS_MMU_PROT_RW);
-  // memcyp(bufDisk, vmRegion, page?);
   memcpy(bufDisk, vmRegion, USLOSS_MmuPageSize());
   int track = -1;
   for(int i = 0; i < NUMTRACKS; i++)
@@ -513,7 +512,10 @@ int outputFrame(int pid, int pagenum, void *bufDisk)
 	USLOSS_Halt(1);
   }
   diskWriteReal(1, track, 0, 8, bufDisk); 
-  trackBlockTable[track].status = INCORE; 
+  trackBlockTable[track].status = INCORE;
+  trackBlockTable[track].pid = pid;
+  trackBlockTable[track].page = pagnum;
+  trackBlockTalbe[track].frame = procTable[pid%MAXPROC].pageTable[pagenum].frame;
   vmStats.pageOuts++;
   return track;
 }
