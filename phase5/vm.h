@@ -41,6 +41,15 @@ typedef struct FTE {
     // Add more stuff here
 } FTE;
 
+typedef struct trackBlock {
+	int page;
+	int pid;
+	int frame;
+	int status;
+} trackBlock;
+
+
+
 /*
  * Per-process information.
  */

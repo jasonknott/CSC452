@@ -5,15 +5,11 @@
 extern int debugflag5;
 
 
-void
-p1_fork(int pid)
+void p1_fork(int pid)
 {
     if (DEBUG && debugflag5)
         USLOSS_Console("p1_fork() called: pid = %d\n", pid);
-
-    if (vmStarted == FALSE){
-    	return;
-    }
+	forkReal(pid);
 
 } /* p1_fork */
 
@@ -22,12 +18,7 @@ p1_switch(int old, int new)
 {
     if (DEBUG && debugflag5)
         USLOSS_Console("p1_switch() called: old = %d, new = %d\n", old, new);
-    
-    if (vmStarted == FALSE){
-    	return;
-    }
-
-    vmStats.switches++;
+	switchReal(old, new); 
 	// if oldpid is not  > 0 
  //    check processes old pid > 0 
 /*
@@ -47,10 +38,7 @@ p1_quit(int pid)
 {
     if (DEBUG && debugflag5)
         USLOSS_Console("p1_quit() called: pid = %d\n", pid);
-
-    if (vmStarted == FALSE){
-    	return;
-    }
+	quitReal(pid);
 /*
     for(pagetable )
     	if pagetable[i].framenum != -1:

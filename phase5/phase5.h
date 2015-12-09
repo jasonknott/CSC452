@@ -52,4 +52,8 @@ int vmStarted;
 
 extern VmStats	vmStats;
 extern int start5(char *);
+
+void forkReal(int);
+void switchReal(int,int);
+void quitReal(int);
 #endif /* _PHASE5_H */

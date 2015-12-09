@@ -18,7 +18,7 @@
 #include <string.h>
 #include "provided_prototypes.h"
 
-
+#define NUMTRACKS 16
 
 int debugflag5 = 1;
 
@@ -56,6 +56,7 @@ int disk;
 int faultMailbox;
 VmStats  vmStats;
 static Process procTable[MAXPROC];
+static trackBlock trackBlockTable[NUMTRACKS];
 FTE* frameTable;
 procPtr listOfPagers;
 int numOfFrames;
@@ -107,7 +108,13 @@ int start4(char *arg){
     DiskSize(1, &sector, &track, &disk);
 
     diskBlocks = disk;
-
+	for(int i = 0; i< NUMTRACKS; i++)
+	{
+		trackBlockTable[i].page = -1;
+		trackBlockTable[i].pid = -1;
+		trackBlockTable[i].frame = -1;
+		trackBlockTable[i].status = UNUSED;
+	}
     initializeProcTable();
 
     result = Spawn("Start5", start5, NULL, 8*USLOSS_MIN_STACK, 2, &pid);
@@ -193,13 +200,9 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     if (debugflag5 && DEBUG5)
       USLOSS_Console("vmInit(): Initialize page tables.\n");
     for (int i = 0; i < MAXPROC; ++i){
-        procTable[i].pages = 0;
-        procTable[i].pageTable = malloc(sizeof(PTE) * pages);
-        for (int j = 0; j < pages; ++j){
-          procTable[i].pageTable[j].state = UNUSED;
-          procTable[i].pageTable[j].frame = -1;
-          procTable[i].pageTable[j].diskBlock = -1;
-        }
+        //procTable[i].pages = 0;
+        procTable[i].pageTable = NULL;
+		procTable[i].numPages = pages;
     }
 
     /* 
@@ -224,7 +227,7 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("About to creat Pager%i\n", i);
       sprintf(str, "%d", i);
-      int pid = fork1("Pager", Pager, str, USLOSS_MIN_STACK, 2);
+      int pid = fork1("Pager", Pager, &str[0], USLOSS_MIN_STACK, 2);
 
       procTable[pid % MAXPROC].pid = pid;
       addToList(pid, &listOfPagers);
@@ -443,7 +446,7 @@ static int Pager(char *buf){
     frameTable[frame].clean = TRUE;
     frameTable[frame].referenced = TRUE;
     frameTable[frame].page = page;
-
+	int result;
     /* Unblock waiting (faulting) process */
     result = MboxSend(fault.replyMbox, "", 0);
     if (result < 0) {
@@ -455,48 +458,86 @@ static int Pager(char *buf){
   return 0;
 } /* Pager */
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * getFrame --
+ *
+ * 
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      
+ *
+ *----------------------------------------------------------------------
+ */
 
 int getFrame(int pid,int page,void *bufDisk){
   // get diskblock from disk
-  int diskblock = procTable[pid].pageTable[page].diskBlock;
-  // always use disk1
-  // diskblock == is the track the page is stored on
-  diskReadReal(1, diskblock, 0, 8, bufDisk);
-
+  int track;
+  int frame;
+  for(int i = 0; i < NUMTRACKS; i++)
+  {
+	if(trackBlockTable[i].pid == pid && trackBlockTable[i].page == page)
+	{
+		track = i;
+		frame = trackBlockTable[i].frame;
+		break;
+	}
+  }
+  //int diskblock = procTable[pid].pageTable[page].diskBlock;
+  diskReadReal(1, track, 0, 8, bufDisk);
   vmStats.pageIns++;
-
-  return 0;
+  return frame;
 }
 
-int outputFrame(int pid, int pagenum, void *bufDisk){
-
-  // USLOSS_MmuMap(something)
+int outputFrame(int pid, int pagenum, void *bufDisk)
+{
+  USLOSS_MmuMap(0, pagenum, procTable[pid%MAXPROC].pageTable[pagenum].frame, USLOSS_MMU_PROT_RW);
   // memcyp(bufDisk, vmRegion, page?);
-
-  // for diskBlock:
-  //   if diskBlock[i].status == unused
-  //     break
-
-  // if i == max diskBlock
-  //   halt
-
-  // always use disk1
-  // diskblock == is the track the page is stored on == i whn it breaks
-  // diskreadReal(1, diskblock, 0, 8, bufDisk)
-  // diskBlock[i].status = used
-
-  // vmStats.pageOuts++;
-
-  // return i;
-  return 0;
-
+  memcpy(bufDisk, vmRegion, USLOSS_MmuPageSize());
+  int track = -1;
+  for(int i = 0; i < NUMTRACKS; i++)
+  {
+	if(trackBlockTable[i].status == UNUSED)
+	{
+		track = i; 
+		break;
+	}
+  }
+  if(track == -1)
+  {
+	USLOSS_Console("Disk is FULL!\n");
+	USLOSS_Halt(1);
+  }
+  diskWriteReal(1, track, 0, 8, bufDisk); 
+  trackBlockTable[track].status = INCORE; 
+  vmStats.pageOuts++;
+  return track;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * fork1 --
+ *
+ * 
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      
+ *
+ *----------------------------------------------------------------------
+ */
 
-int findFrame(int pagerID){
+int findFrame(int pagerID) {
 
   /* Look for free frame */
-  int frame;
+  int frame = 0;
   int freeFrames = vmStats.freeFrames != 0;
   for (frame = 0; frame < numOfFrames && freeFrames; ++frame){
     if(frameTable[frame].state == UNUSED){
@@ -506,34 +547,183 @@ int findFrame(int pagerID){
   }
 
   // TODO: Add mutex here
-  if(freeFrames == FALSE){
-    if (debugflag5 && DEBUG5)
-      USLOSS_Console("Pager%i(): No free frames, starting clock algorithm\n", pagerID);
+  if(freeFrames == FALSE)
+  {
+	if (debugflag5 && DEBUG5)
+	{
+		USLOSS_Console("Pager%i(): No free frames, starting clock algorithm\n", pagerID);
+	}
     // If there isn't one then use clock algorithm to
     // replace a page (perhaps write to disk) 
-    while(TRUE){
-      // int referencebit;
-      // USLOSS_MmuGetAccess(&referencebit);
-      // if(!(referencebit & MMU_REF))
-          // remove mutex
-          // return FrameArm
-      // else
-          // frameTable[frameArm].referance = refbit & ~USLOSS_MMU_REF
-          // USLOSS_MmuSetAccess(frame, frameTable[frameArm].referance)
-      if (++frameArm > numOfFrames){
-        frameArm = 0;
-      }
+    while(TRUE)
+	{
+		int referencebit;
+		USLOSS_MmuGetAccess(frameArm, &referencebit);
+		if(!(referencebit & USLOSS_MMU_REF))
+		{
+			//remove mutex
+			return frameArm;
+		}
+		else
+		{
+			frameTable[frameArm].referenced = referencebit & ~ USLOSS_MMU_REF;
+			USLOSS_MmuSetAccess(frameArm, frameTable[frameArm].referenced);
+		}
+		if (++frameArm > numOfFrames)
+		{
+			frameArm = 0;
+		}
     }
     // Setting the frame to the first unused frame the clock finds
     frame = frameArm;
-    }
+  }
 
     //TODO:  remove mutex here
-  
   return frame;
-
 }
+/*
+ *----------------------------------------------------------------------
+ *
+ * fork1 --
+ *
+ * 
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      
+ *
+ *----------------------------------------------------------------------
+ */
+void forkReal(int pid) 
+{
+	if(vmStarted == FALSE)
+	{
+		return;
+	}
+	//There is nothing to do, because we do this in vmINIT; which is VERY BAD!
+	int numPages = procTable[pid%MAXPROC].numPages;
+	procTable[pid%MAXPROC].pageTable = malloc(sizeof(PTE) * numPages);
 
+	for(int i = 0; i < numPages; i++)
+	{
+		procTable[pid % MAXPROC].pageTable[i].state = UNUSED;
+		procTable[pid % MAXPROC].pageTable[i].frame = -1;
+		procTable[pid % MAXPROC].pageTable[i].diskBlock = -1;
+		//Add more stuff here. 
+	}
+	procTable[pid % MAXPROC].pid = pid;
+	
+}/* fork1 */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * switch1 --
+ *
+ * switch out pages from the old to new 
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      
+ *
+ *----------------------------------------------------------------------
+ */
+void switchReal(int old, int new)
+{
+	if(vmStarted == FALSE)
+	{
+		return;
+	}
+	int status;
+	vmStats.switches++;
+	int numPages = sizeof(procTable[old%MAXPROC].pageTable)/sizeof(PTE);
+	for(int i = 0; i < numPages; i++)
+	{
+		int frame = procTable[old%MAXPROC].pageTable[i].frame;
+		if(frame != -1)
+		{
+			status = USLOSS_MmuUnmap(i, frame);
+			if(status != USLOSS_MMU_OK)
+			{
+				USLOSS_Console("Failed to do UnMap on Switch: \n\t old_pid=%d\n", old);
+				USLOSS_Halt(1);
+			}	
+		}
+	}
+
+	for(int i = 0; i < numPages; i++)
+	{
+		if(procTable[new%MAXPROC].pageTable[i].frame != -1)
+		{
+			status = USLOSS_MmuMap(0, i, procTable[new%MAXPROC].pageTable[i].frame, USLOSS_MMU_PROT_RW);
+			if(status != USLOSS_MMU_OK)
+			{
+				USLOSS_Console("Failed to do Map on Switch: \n\t new_pid=%d\n", new);
+				USLOSS_Halt(1);
+			}
+		}
+	}
+}/* switch1 */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * quit1 --
+ *
+ * quits the process and cleans up  
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      
+ *
+ *----------------------------------------------------------------------
+ */
+void quitReal(int pid)
+{
+	if(vmStarted == FALSE)
+	{
+		return;
+	}
+	int status;
+	int numPages = sizeof(procTable[pid % MAXPROC].pageTable)/sizeof(PTE);
+	for(int i = 0; i < numPages; i++)
+	{
+		int frame = procTable[pid % MAXPROC].pageTable[i].frame;
+		if(frame != -1)
+		{
+			status = USLOSS_MmuUnmap(i, frame);
+			if(status != USLOSS_MMU_OK)
+			{
+				USLOSS_Console("Failed to do UnMap on Quit: \n\t pid=%d\n", pid);
+				USLOSS_Halt(1);
+			}
+			procTable[pid%MAXPROC].pageTable[i].state = UNUSED;
+			procTable[pid%MAXPROC].pageTable[i].frame = -1;
+			procTable[pid%MAXPROC].pageTable[i].diskBlock = -1; //Maybe?
+			frameTable[frame].pid = -1;
+			frameTable[frame].referenced = FALSE; //This may not allow track to be reused.
+			//TODO: NEED TO ADD MORE HERE
+			vmStats.freeFrames++;
+		}
+	}
+	//TODO: NEED TO DO DiskBlock[] HERE
+	for(int i = 0; i < NUMTRACKS; i++)
+	{
+		if(trackBlockTable[i].pid == pid)
+		{
+			trackBlockTable[i].status = UNUSED;
+		}
+	}
+	procTable[pid % MAXPROC].pid = -1;
+	free(procTable[pid%MAXPROC].pageTable); //WARNING: MAY CAUSE ERRORS!
+	procTable[pid%MAXPROC].pageTable= NULL;
+}/* quit1 */
 /*
  *----------------------------------------------------------------------
  *
@@ -648,18 +838,10 @@ void initializeProcTable(){
         procTable[i] = (Process){
             .pid = -1,
             .nextProcPtr = NULL,
-            .pageTable = &(PTE) {},
-            // Might have to change to 1 slot later...
+            .pageTable = NULL,
+			.numPages = -1,
             .FaultMBoxID = tmpMbox,
-            // MboxCreate(0,sizeof(int)),
             .pages = -1,
-        //     .mboxTermReal = -1,
-        //     .WakeTime = -1,
-        //     .opr = 1,
-        //     .track = -1,
-        //     .first = -1,
-        //     .sectors = -1,
-        //     .buffer = (void*)(long)-1,
         };
     }
 }
