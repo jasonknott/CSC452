@@ -35,9 +35,7 @@ typedef struct FTE {
     int  referenced;
     int  clean;
     int  state;      // See above.
-    int  page;      
-    int  track;
-    int  sector;
+    int  page;
     // Add more stuff here
 } FTE;
 

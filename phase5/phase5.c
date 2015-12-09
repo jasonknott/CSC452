@@ -193,9 +193,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
         frameTable[i].state = UNUSED;
         frameTable[i].pid = -1;
         frameTable[i].page = -1;
-        // track and frame
-        //frameTable[i].track = i/2;
-        //frameTable[i].sector = i%2 * 8;
         frameTable[i].referenced = FALSE;
         frameTable[i].clean = TRUE;
     }
@@ -261,6 +258,9 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     vmStats.pageIns = 0;
     vmStats.pageOuts = 0;
     vmStats.replaced = 0;
+
+
+    printFT();
 
     return vmRegion;
 } /* vmInitReal */
@@ -379,6 +379,7 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset wit
  *----------------------------------------------------------------------
  */
 static int Pager(char *buf){
+  int result;
   int pagerID = atoi(buf);
   if (debugflag5 && DEBUG5){
       USLOSS_Console("Pager%s(): started\n", buf);
@@ -409,40 +410,66 @@ static int Pager(char *buf){
 
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
 
+  
     if(frameTable[frame].state == UNUSED){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame #%i is unused\n", buf, frame);
-      // vmStats.freeFrames--;
+      vmStats.freeFrames--;
       vmStats.new++;
     } else{
-        // The frame is used...
-        // get access with USELOSS call
-        int refBit; 
-        // int USLOSS_MmuGetAccess(int frame, int *accessPtr);
-        USLOSS_MmuGetAccess(frame, &refBit);
-        if (refBit & USLOSS_MMU_DIRTY){
-              int trackBlock = outputFrame(pid, page, &bufDisk);
-              // store diskBlock in old pagetable Entry
-              procTable[pid % MAXPROC].pageTable[page].trackBlock = trackBlock;
-              frameTable[trackBlockTable[trackBlock].frame].pid = pid;
-        } 
+      if (debugflag5 && DEBUG5)
+        USLOSS_Console("Pager%s(): Frame #%i is USED\n", buf, frame);
+      // The frame is used...
+      // get access with USELOSS call
+      int refBit; 
+      // int USLOSS_MmuGetAccess(int frame, int *accessPtr);
+      USLOSS_MmuGetAccess(frame, &refBit);
+      // result = USLOSS_MmuGetAccess(frame, &refBit);
+      // if (result != USLOSS_MMU_OK) {
+      //   USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+      //   USLOSS_Halt(1);
+      // }
 
-        if (procTable[pid % MAXPROC].pageTable[page].state == UNUSED){
-              // This is the easy case of it not being on the disk
-              // Page might be 0 because we map it for page?
-              USLOSS_MmuMap(0, 0, frame, USLOSS_MMU_PROT_RW);
-              memset(vmRegion, '\0', USLOSS_MmuPageSize());
-        } else {
-              // If the frame is on disk, get the data and copy it too the vmRegion
-              int oldFrame = getFrame(pid, page, bufDisk);
-              USLOSS_MmuMap(0, 0, oldFrame, USLOSS_MMU_PROT_RW);
-              memcpy(vmRegion, bufDisk, USLOSS_MmuPageSize());
+      // Not sure if this bang goes here...
+      if (!(refBit & USLOSS_MMU_DIRTY)){
+        if (debugflag5 && DEBUG5)
+          USLOSS_Console("Pager%s(): Frame #%i is DIRTY\n", buf, frame);
+        int trackBlock = outputFrame(pid, page, &bufDisk);
+        // store diskBlock in old pagetable Entry
+        procTable[pid % MAXPROC].pageTable[page].trackBlock = trackBlock;
+        frameTable[trackBlockTable[trackBlock].frame].pid = pid;
+      }
+
+      if (procTable[pid % MAXPROC].pageTable[page].state == UNUSED){
+        if (debugflag5 && DEBUG5)
+          USLOSS_Console("Pager%s(): page #%i is NOT on disk\n", buf, page);
+        // This is the easy case of it not being on the disk
+        // Page might be 0 because we map it for page?
+        result = USLOSS_MmuMap(0, 0, frame, USLOSS_MMU_PROT_RW);
+        if (result != USLOSS_MMU_OK) {
+          USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+          USLOSS_Halt(1);
         }
+        memset(vmRegion, '\0', USLOSS_MmuPageSize());
+      } else {
+        if (debugflag5 && DEBUG5)
+          USLOSS_Console("Pager%s(): page #%i is on disk\n", buf, page);
+        // If the frame is on disk, get the data and copy it too the vmRegion
+        int oldFrame = getFrame(pid, page, bufDisk);
+        
+        result = USLOSS_MmuMap(0, 0, oldFrame, USLOSS_MMU_PROT_RW);
+         if (result != USLOSS_MMU_OK) {
+          USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
+          USLOSS_Halt(1);
+        }
+
+        memcpy(vmRegion, bufDisk, USLOSS_MmuPageSize());
+      }
     }
+
 
     // USLOSS_mmu_setaccess(frame, 0);
     // USLOSS_MmuUnmap(0, frame);
-    int result;
    if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap on page %i and frame %i\n", buf, page, frame);
     // USLOSS_MmuMap(int tag, int page, int frame, int protection);
@@ -461,6 +488,13 @@ static int Pager(char *buf){
     frameTable[frame].referenced = TRUE;
     frameTable[frame].page = page;
     
+    if (debugflag5 && DEBUG5)
+      USLOSS_Console("Pager%s(): about to free pid %i\n", buf, pid);
+
+    if (debugflag5 && DEBUG5)
+      USLOSS_Console("Pager%s(): frame %i state %i\n", buf, frame, frameTable[frame].state);
+
+    USLOSS_Console("Pager%s(): pid %i frameTable[pid].pid %i\n", buf, pid, frameTable[frame].pid);
     /* Unblock waiting (faulting) process */
     result = MboxSend(fault.replyMbox, "", 0);
     if (result < 0) {
@@ -507,23 +541,23 @@ int getFrame(int pid,int page,void *bufDisk){
   return frame;
 }
 
-int outputFrame(int pid, int pagenum, void *bufDisk)
-{
-  USLOSS_MmuMap(0, pagenum, procTable[pid%MAXPROC].pageTable[pagenum].frame, USLOSS_MMU_PROT_RW);
+int outputFrame(int pid, int pagenum, void *bufDisk){
+  if (debugflag5 && DEBUG5)
+    USLOSS_Console("outputFrame%i(): started, about to write page to disk\n", pid);
+  // might switch map and unmap
+  // USLOSS_MmuMap(0, pagenum, procTable[pid%MAXPROC].pageTable[pagenum].frame, USLOSS_MMU_PROT_RW);
+  // USLOSS_MmuUnmap(0, pagenum);
   memcpy(bufDisk, vmRegion, USLOSS_MmuPageSize());
   int track = -1;
-  for(int i = 0; i < NUMTRACKS; i++)
-  {
-	if(trackBlockTable[i].status == UNUSED)
-	{
-		track = i; 
-		break;
-	}
+  for(int i = 0; i < NUMTRACKS; i++){
+  	if(trackBlockTable[i].status == UNUSED){
+  		track = i; 
+  		break;
+    }
   }
-  if(track == -1)
-  {
-	USLOSS_Console("Disk is FULL!\n");
-	USLOSS_Halt(1);
+  if(track == -1){
+  	USLOSS_Console("Disk is FULL!\n");
+  USLOSS_Halt(1);
   }
   diskWriteReal(1, track, 0, 8, bufDisk); 
   trackBlockTable[track].status = INCORE; 
@@ -561,34 +595,30 @@ int findFrame(int pagerID) {
       break;
     }
   }
+
+  USLOSS_Console("freeFrames %i", vmStats.freeFrames);
   if (debugflag5 && DEBUG5)
-    USLOSS_Console("\n\nfindFrame%i(): frame%i of %i\n", pagerID, frame, numOfFrames);
+    USLOSS_Console("\n\nfindFrame%i(): frame %i (0 base) of %i (1 base)\n", pagerID, frame, numOfFrames);
 
   // TODO: Add mutex here
-  if(freeFrames == FALSE)
-  {
-	if (debugflag5 && DEBUG5)
-	{
-		USLOSS_Console("Pager%i(): No free frames, starting clock algorithm\n", pagerID);
-	}
+  if(freeFrames == FALSE){
+  	if (debugflag5 && DEBUG5){
+  		USLOSS_Console("Pager%i(): No free frames, starting clock algorithm\n", pagerID);
+  	}
     // If there isn't one then use clock algorithm to
     // replace a page (perhaps write to disk) 
-    while(TRUE)
-	{
+    while(TRUE){
 		int referencebit;
 		USLOSS_MmuGetAccess(frameArm, &referencebit);
-		if(!(referencebit & USLOSS_MMU_REF))
-		{
+		if(!(referencebit & USLOSS_MMU_REF)){
 			//remove mutex
 			return frameArm;
 		}
-		else
-		{
+		else{
 			frameTable[frameArm].referenced = referencebit & ~ USLOSS_MMU_REF;
 			USLOSS_MmuSetAccess(frameArm, frameTable[frameArm].referenced);
 		}
-		if (++frameArm > numOfFrames)
-		{
+		if (++frameArm > numOfFrames-1){
 			frameArm = 0;
 		}
     }
@@ -848,6 +878,18 @@ void PrintStats(void){
     USLOSS_Console("pageOuts:       %d\n", vmStats.pageOuts);
     USLOSS_Console("replaced:       %d\n", vmStats.replaced);
 } /* PrintStats */
+
+void printFT(void){
+ for (int i = 0; i < numOfFrames; ++i){
+    USLOSS_Console("frameTable[%i].pid: %i\n", i, frameTable[i].pid);
+    USLOSS_Console("frameTable[%i].referenced: %i\n", i, frameTable[i].referenced);
+    USLOSS_Console("frameTable[%i].clean: %i\n", i, frameTable[i].clean);
+    USLOSS_Console("frameTable[%i].state: %i\n", i, frameTable[i].state);
+    USLOSS_Console("frameTable[%i].page: %i\n", i, frameTable[i].page);
+    USLOSS_Console("frameTable[%i].pid: %i\n", i, frameTable[i].pid);
+
+  } 
+}
 
 void initializeProcTable(){
     if(debugflag5 && DEBUG5)
