@@ -554,7 +554,7 @@ int findFrame(int pagerID) {
   /* Look for free frame */
   int frame = 0;
   int freeFrames = vmStats.freeFrames != 0;
-  for (frame = 0; frame < numOfFrames && freeFrames; ++frame){
+  for (frame = 0; frame < numOfFrames-1 && freeFrames; ++frame){
     USLOSS_Console("tmpframe: %i\n", frame);
     if(frameTable[frame].state == UNUSED){
       freeFrames = TRUE;
