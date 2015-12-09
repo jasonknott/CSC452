@@ -244,7 +244,6 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
       USLOSS_Console("vmInit(): initialize the vmStats structure\n");
     memset((char *) &vmStats, 0, sizeof(VmStats));
     
-    
     /*
     * Initialize other vmStats fields.
     */
@@ -260,11 +259,12 @@ void * vmInitReal(int mappings, int pages, int frames, int pagers){
     vmStats.pageOuts = 0;
     vmStats.replaced = 0;
 
+
+    USLOSS_Console("before: vmRegion\n");
     //Filling vmRegion with 0's
     // DON'T MOVE!!! This has black magic in it, and it scares me....
-    memset(vmRegion, 0, USLOSS_MmuPageSize() * pages);
-
-
+    memset(vmRegion, 0, (USLOSS_MmuPageSize() * pages));
+    USLOSS_Console("after: vmRegion\n");
 
     return vmRegion;
 } /* vmInitReal */
@@ -420,7 +420,7 @@ static int Pager(char *buf){
     if(frameTable[frame].state == UNUSED){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame #%i is unused\n", buf, frame);
-      vmStats.freeFrames--;
+      // vmStats.freeFrames--;
       vmStats.new++;
     } else{
         // The frame is used...
@@ -670,7 +670,7 @@ void switchReal(int old, int new)
 		int frame = procTable[old%MAXPROC].pageTable[i].frame;
 		if(frame != -1)
 		{
-			status = USLOSS_MmuUnmap(i, frame);
+			status = USLOSS_MmuUnmap(0, i);
 			if(status != USLOSS_MMU_OK)
 			{
 				USLOSS_Console("Failed to do UnMap on Switch: \n\t old_pid=%d\n", old);
