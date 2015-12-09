@@ -423,11 +423,12 @@ static int Pager(char *buf){
         // int USLOSS_MmuGetAccess(int frame, int *accessPtr);
         USLOSS_MmuGetAccess(frame, &refBit);
         if (refBit & USLOSS_MMU_DIRTY){
-              int diskBlock = outputFrame(pid, page, &bufDisk);
+              int trackBlock = outputFrame(pid, page, &bufDisk);
               // store diskBlock in old pagetable Entry
-              procTable[pid % MAXPROC].pageTable[page].diskBlock = diskBlock;
+              procTable[pid % MAXPROC].pageTable[page].trackBlock = trackBlock;
         } 
         // oldProcess.pageTable.frameNum = -1;
+        frameTable[]
         // if proctable[pid].pagetable->diskBlock == -1:
               // it's not on the disk
               // USLOSS_MmuMap(0, 0, frame, USLOSS_MMU_PROT_RW);
