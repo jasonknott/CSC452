@@ -14,7 +14,7 @@ PHASE4LIB = patrickphase4
 #PHASE3LIB = patrickphase3debug
 #PHASE4LIB = patrickphase4debug
 
-HDRS = vm.h
+HDRS = vm.h phase5.h
 
 INCLUDE = ./usloss/include
 
@@ -54,6 +54,6 @@ clean:
               chaos.o chaos quit.o quit replace?.o replace? outOfSwap.o \
               outOfSwap clock.o clock core term[0-3].out
 
-submit: $(CSRCS) $(HDRS) $(TURNIN)
+submit: $(CSRCS) $(HDRS) $(TURNIN) 
 	tar cvzf phase5.tgz $(CSRCS) $(HDRS) Makefile
 

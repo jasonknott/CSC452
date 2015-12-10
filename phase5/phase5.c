@@ -19,7 +19,7 @@
 
 #define NUMTRACKS 16
 
-int debugflag5 = 1;
+int debugflag5 = 0;
 
 
 //externs
@@ -366,7 +366,6 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset wit
   int frame = procTable[getpid() % MAXPROC].pageTable[page].frame;
 
 
-  memset(vmRegion, 0, USLOSS_MmuPageSize() * procTable[getpid()%MAXPROC].numPages);
 
   result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
   if (result != USLOSS_MMU_OK) {
@@ -374,6 +373,7 @@ static void FaultHandler(int type /* USLOSS_MMU_INT */, void* arg  /* Offset wit
     USLOSS_Halt(1);
   }
 
+  memset(vmRegion, 0, USLOSS_MmuPageSize() * procTable[getpid()%MAXPROC].numPages);
 
 } /* FaultHandler */
 
@@ -427,11 +427,12 @@ static int Pager(char *buf){
     if(frameTable[frame].pid == -1){
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame #%i is unused\n", buf, frame);
-      vmStats.freeFrames--;
+      // vmStats.freeFrames--;
       vmStats.new++;
     } else{
       if (debugflag5 && DEBUG5)
         USLOSS_Console("Pager%s(): Frame #%i is USED\n", buf, frame);
+      vmStats.freeFrames--;
       // The frame is used...
       // get access with USELOSS call
       int refBit; 
@@ -505,12 +506,7 @@ static int Pager(char *buf){
     // USLOSS_MmuUnmap(0, page); ?????
    if (debugflag5 && DEBUG5)
       USLOSS_Console("Pager%s(): About to call USLOSS_MmuMap on page %i and frame %i\n", buf, page, frame);
-    // USLOSS_MmuMap(int tag, int page, int frame, int protection);
-    result = USLOSS_MmuMap(0, page, frame, USLOSS_MMU_PROT_RW);
-    if (result != USLOSS_MMU_OK) {
-      USLOSS_Console("process %d: Pager failed mapping: %d\n", getpid(), result);
-      USLOSS_Halt(1);
-    }
+
 
 
 
@@ -522,9 +518,11 @@ static int Pager(char *buf){
     frameTable[frame].page = page;
     procTable[pid % MAXPROC].pageTable[page].frame = frame;
     procTable[pid % MAXPROC].pageTable[page].state = USED;
-    
-    printFT();
-    printPT(pid);
+
+    if (debugflag5 && DEBUG5){    
+      printFT();
+      printPT(pid);
+    }
 
 
     if (debugflag5 && DEBUG5)
@@ -627,14 +625,12 @@ int findFrame(int pagerID) {
   int frame = 0;
   int freeFrames = vmStats.freeFrames != 0;
   for (frame = 0; frame < numOfFrames-1 && freeFrames; ++frame){
-    USLOSS_Console("tmpframe: %i\n", frame);
     if(frameTable[frame].state == UNUSED){
       freeFrames = TRUE;
       break;
     }
   }
 
-  USLOSS_Console("freeFrames %i", vmStats.freeFrames);
   if (debugflag5 && DEBUG5)
     USLOSS_Console("\n\nfindFrame%i(): frame %i (0 base) of %i (1 base)\n", pagerID, frame, numOfFrames);
 
@@ -952,7 +948,7 @@ void initializeProcTable(){
     int i;
     for(i = 0; i < MAXPROC; i++){
       int tmpMbox;
-      Mbox_Create(1, sizeof(int), &tmpMbox);
+      Mbox_Create(0, sizeof(int), &tmpMbox);
         procTable[i] = (Process){
             .pid = -1,
             .nextProcPtr = NULL,
