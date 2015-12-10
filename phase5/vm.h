@@ -13,6 +13,7 @@
  */
 #define UNUSED 500
 #define INCORE 501
+#define USED   502
 /* You'll probably want more states */
 
 
@@ -23,7 +24,6 @@ typedef struct PTE {
     int  state;      // See above.
     int  frame;      // Frame that stores the page (if any). -1 if none.
     int  trackBlock;  // Disk block that stores the page (if any). -1 if none.
-    
     // Add more stuff here
 } PTE;
 
